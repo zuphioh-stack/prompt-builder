@@ -154,6 +154,15 @@
     return PROMPT_TEMPLATES.filter((tpl) => tpl.categories.every(isCategoryEnabled));
   }
 
+  // Prefer templates that weave multiple categories together; the
+  // single-category "Draw {x}." templates only come into play when nothing
+  // richer is available (i.e. very few categories are enabled).
+  function templatesToUse() {
+    const eligible = eligibleTemplates();
+    const rich = eligible.filter((tpl) => tpl.categories.length > 1);
+    return rich.length > 0 ? rich : eligible;
+  }
+
   function refreshFullPromptAvailability() {
     const hasTemplates = eligibleTemplates().length > 0;
     document.getElementById("generate-prompt-btn").disabled = !hasTemplates;
@@ -181,7 +190,7 @@
   }
 
   function generateFullPrompt() {
-    const templates = eligibleTemplates();
+    const templates = templatesToUse();
     if (templates.length === 0) {
       refreshFullPromptAvailability();
       return;
