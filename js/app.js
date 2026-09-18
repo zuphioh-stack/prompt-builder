@@ -59,11 +59,12 @@
   function initTheme() {
     const stored = load(STORAGE_KEYS.theme, "dark");
     applyTheme(stored);
-    document.getElementById("theme-toggle").addEventListener("click", () => {
+    document.getElementById("theme-toggle").addEventListener("click", (e) => {
       const isLight = document.documentElement.getAttribute("data-theme") === "light";
       const next = isLight ? "dark" : "light";
       applyTheme(next);
       save(STORAGE_KEYS.theme, next);
+      replayAnimation(e.currentTarget, "spin-once");
     });
   }
 
@@ -153,14 +154,22 @@
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
 
+  // (re)plays a CSS animation class on an element, even if it's already
+  // present (e.g. clicking "Shuffle" twice fast) — removing the class,
+  // forcing a reflow, then re-adding it restarts the animation from scratch.
+  function replayAnimation(el, className) {
+    if (!el) return;
+    el.classList.remove(className);
+    void el.offsetWidth;
+    el.classList.add(className);
+  }
+
   /* ---------- Rendering single category cards ---------- */
 
   function renderCard(category) {
     const valueEl = document.querySelector(`#card-${category} .card-value`);
     valueEl.textContent = current[category] ? capitalize(current[category]) : "—";
-    valueEl.classList.remove("pop");
-    void valueEl.offsetWidth; // restart animation
-    valueEl.classList.add("pop");
+    replayAnimation(valueEl, "pop");
   }
 
   function generateSingle(category) {
@@ -233,6 +242,8 @@
       .replace(/{word}/g, word);
   }
 
+  const GENERATE_SPIN_MS = 480;
+
   function generateFullPrompt() {
     const templates = templatesToUse();
     if (templates.length === 0) {
@@ -242,12 +253,24 @@
     const template = templates[Math.floor(Math.random() * templates.length)];
     const text = fillTemplate(template.text);
     const textEl = document.getElementById("full-prompt-text");
+    const generateBtn = document.getElementById("generate-prompt-btn");
+    const iconEl = generateBtn.querySelector(".btn-icon");
 
+    // A brief, deliberate "generating" beat — the icon spins and the old
+    // text fades while the new prompt (already picked above) waits to be
+    // revealed, so clicking always feels like something happened.
+    generateBtn.disabled = true;
+    iconEl.innerHTML = ICONS.spinner;
+    iconEl.classList.add("spin-loop");
     textEl.classList.add("fade-out");
+
     setTimeout(() => {
       textEl.textContent = text;
       textEl.classList.remove("fade-out");
-    }, 140);
+      iconEl.classList.remove("spin-loop");
+      iconEl.innerHTML = ICONS.pencil;
+      generateBtn.disabled = false;
+    }, GENERATE_SPIN_MS);
 
     document.getElementById("full-prompt-card").dataset.text = text;
     const starBtn = document.getElementById("full-prompt-star");
@@ -627,7 +650,10 @@
       starBtn.title = starred ? "Unfavorite" : "Favorite";
       starBtn.setAttribute("aria-label", starBtn.title);
       starBtn.innerHTML = starred ? ICONS.starFilled : ICONS.starOutline;
-      starBtn.addEventListener("click", onStar);
+      starBtn.addEventListener("click", () => {
+        onStar();
+        if (isFavorited(text)) replayAnimation(starBtn, "star-pop");
+      });
       actions.appendChild(starBtn);
     }
 
@@ -808,7 +834,11 @@
         <button class="card-shuffle" type="button" title="Shuffle ${meta.label}"><span class="btn-icon">${ICONS.shuffle}</span>Shuffle</button>
       `;
       grid.appendChild(card);
-      card.querySelector(".card-shuffle").addEventListener("click", () => generateSingle(category));
+      const shuffleBtn = card.querySelector(".card-shuffle");
+      shuffleBtn.addEventListener("click", () => {
+        replayAnimation(shuffleBtn.querySelector(".btn-icon"), "spin-once");
+        generateSingle(category);
+      });
     });
   }
 
@@ -827,7 +857,10 @@
     renderFavorites();
     renderPractice();
 
-    document.getElementById("shuffle-all-btn").addEventListener("click", shuffleAll);
+    document.getElementById("shuffle-all-btn").addEventListener("click", (e) => {
+      replayAnimation(e.currentTarget.querySelector(".btn-icon"), "spin-once");
+      shuffleAll();
+    });
     document.getElementById("generate-prompt-btn").addEventListener("click", generateFullPrompt);
     document.getElementById("clear-history-btn").addEventListener("click", clearHistory);
     document.getElementById("clear-favorites-btn").addEventListener("click", clearFavorites);
@@ -843,8 +876,10 @@
       const text = document.getElementById("full-prompt-card").dataset.text || "";
       if (!text) return;
       toggleFavorite(text);
-      setButtonContent(e.currentTarget, isFavorited(text) ? "starFilled" : "starOutline", isFavorited(text) ? "Favorited" : "Favorite");
-      e.currentTarget.classList.toggle("active", isFavorited(text));
+      const nowFavorited = isFavorited(text);
+      setButtonContent(e.currentTarget, nowFavorited ? "starFilled" : "starOutline", nowFavorited ? "Favorited" : "Favorite");
+      e.currentTarget.classList.toggle("active", nowFavorited);
+      if (nowFavorited) replayAnimation(e.currentTarget.querySelector(".btn-icon"), "star-pop");
     });
 
     document.getElementById("practice-photo-input").addEventListener("change", async (e) => {
