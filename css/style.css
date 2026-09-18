@@ -41,20 +41,12 @@
 
 body {
   margin: 0;
-  background:
-    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.05) 1px, transparent 0) 0 0 / 22px 22px,
-    var(--paper);
+  background: var(--paper);
   color: var(--ink);
-  font-family: "Nunito", system-ui, sans-serif;
+  font-family: "Inter", system-ui, sans-serif;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.2s ease, color 0.2s ease;
-}
-
-:root[data-theme="light"] body {
-  background:
-    radial-gradient(circle at 1px 1px, rgba(36, 33, 29, 0.06) 1px, transparent 0) 0 0 / 22px 22px,
-    var(--paper);
 }
 
 /* ---------- Paint-drip banner ---------- */
@@ -120,15 +112,17 @@ body {
 }
 
 .site-header h1 {
-  font-family: "Fraunces", "Patrick Hand", cursive;
-  font-weight: 600;
-  font-size: clamp(2.1rem, 5vw, 3.1rem);
+  font-family: "Permanent Marker", cursive;
+  font-weight: normal;
+  font-size: clamp(2.1rem, 5.5vw, 3.4rem);
+  line-height: 1.25;
   margin: 0;
+  transform: rotate(-1.5deg);
   background: linear-gradient(100deg, #8b7ef0, var(--accent) 45%, #ef5f81 80%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.01em;
 }
 
 .tagline {
@@ -179,9 +173,9 @@ body {
 }
 
 .panel-heading h2 {
-  font-family: "Fraunces", "Patrick Hand", cursive;
-  font-weight: 600;
-  font-size: 1.4rem;
+  font-family: "Inter", system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 1.3rem;
   margin: 0;
   color: var(--ink);
 }
@@ -326,7 +320,7 @@ body {
   position: absolute;
   top: -1.4rem;
   left: 1.4rem;
-  font-family: "Fraunces", Georgia, serif;
+  font-family: Georgia, serif;
   font-size: 7rem;
   color: var(--accent);
   opacity: 0.16;
@@ -335,11 +329,11 @@ body {
 }
 
 #full-prompt-text {
-  font-family: "Fraunces", "Patrick Hand", cursive;
-  font-weight: 600;
-  font-size: clamp(1.25rem, 2.6vw, 1.6rem);
+  font-family: "Kalam", cursive;
+  font-weight: 700;
+  font-size: clamp(1.3rem, 2.6vw, 1.65rem);
   margin: 0 0 1.4rem;
-  line-height: 1.55;
+  line-height: 1.6;
   color: var(--ink);
   position: relative;
   transition: opacity 0.14s ease, transform 0.14s ease;
@@ -436,9 +430,9 @@ body {
   border: none;
   padding: 0.3rem 0.1rem 0.9rem;
   margin-right: 1.4rem;
-  font-family: "Fraunces", "Patrick Hand", cursive;
-  font-weight: 600;
-  font-size: 1.2rem;
+  font-family: "Inter", system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 1.05rem;
   color: var(--ink-faint);
   cursor: pointer;
   transition: color 0.15s ease;
@@ -672,9 +666,9 @@ body {
 }
 
 .stat-value {
-  font-family: "Fraunces", "Patrick Hand", cursive;
+  font-family: "Inter", system-ui, sans-serif;
   font-size: 1.6rem;
-  font-weight: 600;
+  font-weight: 800;
   color: var(--accent-dark);
 }
 
