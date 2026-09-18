@@ -1,13 +1,19 @@
 :root {
-  --paper: #faf6ee;
-  --paper-alt: #f1ead9;
-  --ink: #2b2622;
-  --ink-soft: #6b6055;
-  --accent: #c0693a;
-  --accent-dark: #9c4f28;
-  --line: #ddd0ba;
-  --card-shadow: 0 2px 6px rgba(43, 38, 34, 0.08);
-  --radius: 10px;
+  --paper: #fbf7ef;
+  --surface: #ffffff;
+  --ink: #24211d;
+  --ink-soft: #7a7168;
+  --ink-faint: #a89d8f;
+  --accent: #d97a4d;
+  --accent-dark: #b85c31;
+  --accent-tint: #fbe9df;
+  --line: #ece3d3;
+  --shadow-sm: 0 1px 2px rgba(36, 33, 29, 0.06);
+  --shadow-md: 0 8px 24px -12px rgba(36, 33, 29, 0.18);
+  --shadow-lg: 0 20px 45px -20px rgba(36, 33, 29, 0.28);
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
 }
 
 * {
@@ -16,138 +22,231 @@
 
 body {
   margin: 0;
-  background: var(--paper);
-  background-image:
-    linear-gradient(var(--line) 1px, transparent 1px);
-  background-size: 100% 32px;
+  background:
+    radial-gradient(circle at 1px 1px, rgba(36, 33, 29, 0.06) 1px, transparent 0) 0 0 / 22px 22px,
+    var(--paper);
   color: var(--ink);
   font-family: "Nunito", system-ui, sans-serif;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
+
+/* ---------- Header ---------- */
 
 .site-header {
   text-align: center;
-  padding: 2.5rem 1rem 1.5rem;
+  padding: 3.5rem 1.25rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--accent-tint);
+  color: var(--accent-dark);
+  font-weight: 800;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
 }
 
 .site-header h1 {
-  font-family: "Patrick Hand", cursive;
-  font-size: 2.6rem;
-  margin: 0 0 0.4rem;
-  color: var(--accent-dark);
+  font-family: "Fraunces", "Patrick Hand", cursive;
+  font-weight: 600;
+  font-size: clamp(2.1rem, 5vw, 3.1rem);
+  margin: 0;
+  color: var(--ink);
+  letter-spacing: -0.01em;
 }
 
 .tagline {
   margin: 0;
   color: var(--ink-soft);
   font-size: 1.05rem;
+  max-width: 480px;
+  line-height: 1.5;
 }
 
+/* ---------- Layout ---------- */
+
 .container {
-  max-width: 920px;
+  max-width: 900px;
   margin: 0 auto;
-  padding: 0 1.25rem 3rem;
+  padding: 0 1.25rem 3.5rem;
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: 1.5rem;
 }
 
 .panel {
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 1.25rem 1.5rem 1.5rem;
-  box-shadow: var(--card-shadow);
-  backdrop-filter: blur(2px);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 1.75rem 1.75rem;
+  box-shadow: var(--shadow-md);
 }
 
 .panel-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1rem;
+  margin-bottom: 1.2rem;
+  position: relative;
 }
 
 .panel-heading h2 {
-  font-family: "Patrick Hand", cursive;
-  font-size: 1.5rem;
+  font-family: "Fraunces", "Patrick Hand", cursive;
+  font-weight: 600;
+  font-size: 1.4rem;
   margin: 0;
   color: var(--ink);
 }
 
+/* ---------- Category cards ---------- */
+
 .category-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 0.9rem;
+  gap: 1rem;
 }
 
 .card {
-  background: var(--paper-alt);
+  --card-accent: var(--accent);
+  --card-tint: var(--accent-tint);
+  background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 0.9rem 1rem 1rem;
+  border-radius: var(--radius-md);
+  padding: 1.1rem 1.1rem 1.2rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  min-height: 130px;
+  gap: 0.7rem;
+  min-height: 148px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: color-mix(in srgb, var(--card-accent) 35%, var(--line));
 }
 
 .card-header {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
   color: var(--ink-soft);
-  font-weight: 700;
-  font-size: 0.85rem;
+  font-weight: 800;
+  font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 
 .card-icon {
-  font-size: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  background: var(--card-tint);
+  color: var(--card-accent);
+  font-size: 0.95rem;
+  flex-shrink: 0;
 }
 
 .card-value {
   flex: 1;
-  font-size: 1.15rem;
-  font-weight: 600;
+  font-size: 1.12rem;
+  font-weight: 700;
   line-height: 1.35;
   display: flex;
   align-items: center;
+  color: var(--ink);
+}
+
+.card-value.pop {
+  animation: popIn 0.32s ease;
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .card-shuffle {
   align-self: flex-start;
-  background: none;
-  border: 1px solid var(--accent);
-  color: var(--accent-dark);
+  background: var(--card-tint);
+  border: 1px solid transparent;
+  color: var(--card-accent);
   border-radius: 999px;
-  padding: 0.3rem 0.75rem;
+  padding: 0.35rem 0.85rem;
   font-size: 0.8rem;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 
 .card-shuffle:hover {
-  background: var(--accent);
+  background: var(--card-accent);
   color: #fff;
 }
 
+.card-shuffle:active {
+  transform: scale(0.95);
+}
+
+/* ---------- Full prompt hero ---------- */
+
 .full-prompt-card {
-  background: var(--paper-alt);
-  border: 1px dashed var(--accent);
-  border-radius: var(--radius);
-  padding: 1.5rem;
+  position: relative;
+  background: linear-gradient(165deg, var(--accent-tint), var(--surface) 55%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 2.4rem 2rem 1.9rem;
   text-align: center;
+  overflow: hidden;
+}
+
+.full-prompt-card::before {
+  content: "“";
+  position: absolute;
+  top: -1.4rem;
+  left: 1.4rem;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 7rem;
+  color: var(--accent);
+  opacity: 0.16;
+  line-height: 1;
+  pointer-events: none;
 }
 
 #full-prompt-text {
-  font-family: "Patrick Hand", cursive;
-  font-size: 1.6rem;
-  margin: 0 0 1.1rem;
-  line-height: 1.5;
+  font-family: "Fraunces", "Patrick Hand", cursive;
+  font-weight: 600;
+  font-size: clamp(1.25rem, 2.6vw, 1.6rem);
+  margin: 0 0 1.4rem;
+  line-height: 1.55;
   color: var(--ink);
+  position: relative;
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+#full-prompt-text.fade-out {
+  opacity: 0;
+  transform: translateY(3px);
 }
 
 .full-prompt-actions {
@@ -155,30 +254,34 @@ body {
   gap: 0.6rem;
   justify-content: center;
   flex-wrap: wrap;
+  position: relative;
 }
+
+/* ---------- Buttons ---------- */
 
 .btn {
   border: none;
   border-radius: 999px;
-  padding: 0.55rem 1.1rem;
-  font-size: 0.9rem;
-  font-weight: 700;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.88rem;
+  font-weight: 800;
   cursor: pointer;
-  transition: transform 0.1s ease, opacity 0.15s ease;
+  transition: transform 0.12s ease, box-shadow 0.15s ease, opacity 0.15s ease, background 0.15s ease;
   font-family: inherit;
 }
 
 .btn:active {
-  transform: scale(0.97);
+  transform: scale(0.96);
 }
 
 .btn-primary {
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
   color: #fff;
+  box-shadow: 0 10px 20px -10px rgba(184, 92, 49, 0.65);
 }
 
 .btn-primary:hover {
-  background: var(--accent-dark);
+  box-shadow: 0 14px 26px -10px rgba(184, 92, 49, 0.75);
 }
 
 .btn-secondary {
@@ -191,43 +294,64 @@ body {
 }
 
 .btn-ghost {
-  background: transparent;
+  background: var(--surface);
   border: 1px solid var(--line);
   color: var(--ink);
 }
 
 .btn-ghost:hover {
-  background: var(--paper-alt);
+  background: var(--paper);
+  border-color: var(--ink-faint);
+}
+
+.btn-ghost.active {
+  background: var(--accent-tint);
+  border-color: var(--accent);
+  color: var(--accent-dark);
 }
 
 .btn-small {
-  padding: 0.3rem 0.7rem;
+  padding: 0.32rem 0.75rem;
   font-size: 0.78rem;
 }
 
+/* ---------- Tabs ---------- */
+
 .tabs {
   gap: 0.5rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0;
 }
 
 .tab-btn {
   background: none;
   border: none;
-  border-bottom: 3px solid transparent;
-  padding: 0.4rem 0.2rem;
-  margin-right: 1.2rem;
-  font-family: "Patrick Hand", cursive;
-  font-size: 1.3rem;
-  color: var(--ink-soft);
+  padding: 0.3rem 0.1rem 0.9rem;
+  margin-right: 1.4rem;
+  font-family: "Fraunces", "Patrick Hand", cursive;
+  font-weight: 600;
+  font-size: 1.2rem;
+  color: var(--ink-faint);
   cursor: pointer;
+  transition: color 0.15s ease;
 }
 
 .tab-btn.active {
   color: var(--accent-dark);
-  border-bottom-color: var(--accent);
+}
+
+.tab-indicator {
+  position: absolute;
+  bottom: -1px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--accent);
+  transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tab-panel {
   display: none;
+  padding-top: 1.2rem;
 }
 
 .tab-panel.active {
@@ -238,12 +362,15 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: var(--ink-soft);
-  font-size: 0.85rem;
+  color: var(--ink-faint);
+  font-size: 0.75rem;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
-  margin-bottom: 0.6rem;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.7rem;
 }
+
+/* ---------- Lists ---------- */
 
 .item-list {
   list-style: none;
@@ -261,10 +388,16 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  background: var(--paper-alt);
+  background: var(--paper);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 0.55rem 0.75rem;
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.8rem;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+
+.list-row:hover {
+  background: var(--accent-tint);
 }
 
 .list-text {
@@ -274,7 +407,7 @@ body {
 
 .list-actions {
   display: flex;
-  gap: 0.3rem;
+  gap: 0.25rem;
   flex-shrink: 0;
 }
 
@@ -284,12 +417,14 @@ body {
   font-size: 1rem;
   cursor: pointer;
   color: var(--ink-soft);
-  padding: 0.15rem 0.35rem;
-  border-radius: 6px;
+  padding: 0.2rem 0.4rem;
+  border-radius: 8px;
+  transition: background 0.12s ease, color 0.12s ease, transform 0.1s ease;
 }
 
 .icon-btn:hover {
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(36, 33, 29, 0.08);
+  transform: scale(1.08);
 }
 
 .icon-btn.active {
@@ -297,29 +432,79 @@ body {
 }
 
 .empty {
-  color: var(--ink-soft);
+  color: var(--ink-faint);
   font-style: italic;
-  padding: 0.5rem 0;
+  padding: 1rem 0.2rem;
   list-style: none;
+  text-align: center;
 }
+
+/* ---------- Footer ---------- */
 
 .site-footer {
   text-align: center;
-  padding: 1.5rem 1rem 2.5rem;
-  color: var(--ink-soft);
+  padding: 1.5rem 1rem 3rem;
+  color: var(--ink-faint);
   font-size: 0.85rem;
 }
 
+/* ---------- Scrollbar polish ---------- */
+
+.item-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.item-list::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 8px;
+}
+
+.item-list::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-faint);
+}
+
+/* ---------- Dark mode ---------- */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #17140f;
+    --surface: #211d17;
+    --ink: #f2ede3;
+    --ink-soft: #b3a99a;
+    --ink-faint: #7c7264;
+    --accent: #e08a5b;
+    --accent-dark: #f0a679;
+    --accent-tint: #3a2a1e;
+    --line: #34302a;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 10px 26px -14px rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 22px 48px -22px rgba(0, 0, 0, 0.7);
+  }
+
+  body {
+    background:
+      radial-gradient(circle at 1px 1px, rgba(242, 237, 227, 0.06) 1px, transparent 0) 0 0 / 22px 22px,
+      var(--paper);
+  }
+}
+
+/* ---------- Responsive ---------- */
+
 @media (max-width: 480px) {
-  .site-header h1 {
-    font-size: 2.1rem;
+  .site-header {
+    padding: 2.5rem 1rem 1.5rem;
   }
 
   .panel {
-    padding: 1rem;
+    padding: 1.15rem;
   }
 
-  #full-prompt-text {
-    font-size: 1.3rem;
+  .full-prompt-card {
+    padding: 2rem 1.25rem 1.6rem;
+  }
+
+  .tab-btn {
+    margin-right: 1rem;
+    font-size: 1.05rem;
   }
 }

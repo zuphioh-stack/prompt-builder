@@ -5,14 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sketchbook Prompt Generator</title>
   <meta name="description" content="Generate words, objects, things, scenarios, and scenes for sketchbook drawing practice." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23c0693a'/%3E%3Cpath d='M9 23l1.5-5.5L20 8l4 4-9.5 9.5z' fill='%23fff'/%3E%3Cpath d='M20 8l2.2-2.2a1 1 0 0 1 1.4 0l2.6 2.6a1 1 0 0 1 0 1.4L24 12z' fill='%23f1d8b0'/%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Patrick+Hand&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
   <header class="site-header">
+    <div class="header-badge">✏ Sketchbook practice</div>
     <h1>Sketchbook Prompt Generator</h1>
-    <p class="tagline">Ideas to draw, not to render. Everything here is meant for a pencil and paper.</p>
+    <p class="tagline">Ideas to draw, not to render — everything here is meant for a pencil and paper.</p>
   </header>
 
   <main class="container">
@@ -42,6 +45,7 @@
       <div class="panel-heading tabs">
         <button class="tab-btn active" data-target="tab-history" type="button">History</button>
         <button class="tab-btn" data-target="tab-favorites" type="button">Favorites</button>
+        <span id="tab-indicator" class="tab-indicator"></span>
       </div>
 
       <div id="tab-history" class="tab-panel active">

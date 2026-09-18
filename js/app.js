@@ -2,11 +2,11 @@
   "use strict";
 
   const CATEGORY_META = {
-    words: { label: "Word", icon: "✎" },
-    scenarios: { label: "Scenario", icon: "🎬" },
-    objects: { label: "Object", icon: "◈" },
-    things: { label: "Thing", icon: "☺" },
-    scenes: { label: "Scene", icon: "🏔" }
+    words: { label: "Word", icon: "✎", color: "#7c6fdc", tint: "#efedfd" },
+    scenarios: { label: "Scenario", icon: "🎬", color: "#dc8f3f", tint: "#fdf1e0" },
+    objects: { label: "Object", icon: "◈", color: "#3f9d8f", tint: "#e4f5f2" },
+    things: { label: "Thing", icon: "☺", color: "#d9536b", tint: "#fbe6ea" },
+    scenes: { label: "Scene", icon: "🏔", color: "#3f7cc9", tint: "#e6f0fb" }
   };
 
   const STORAGE_KEYS = {
@@ -57,6 +57,10 @@
   function renderCard(category) {
     const valueEl = document.querySelector(`#card-${category} .card-value`);
     valueEl.textContent = capitalize(current[category]);
+    valueEl.classList.remove("pop");
+    // eslint-disable-next-line no-unused-expressions
+    void valueEl.offsetWidth; // restart animation
+    valueEl.classList.add("pop");
   }
 
   function generateSingle(category) {
@@ -92,10 +96,18 @@
   function generateFullPrompt() {
     const template = PROMPT_TEMPLATES[Math.floor(Math.random() * PROMPT_TEMPLATES.length)];
     const text = fillTemplate(template);
-    document.getElementById("full-prompt-text").textContent = text;
+    const textEl = document.getElementById("full-prompt-text");
+
+    textEl.classList.add("fade-out");
+    setTimeout(() => {
+      textEl.textContent = text;
+      textEl.classList.remove("fade-out");
+    }, 140);
+
     document.getElementById("full-prompt-card").dataset.text = text;
     const starBtn = document.getElementById("full-prompt-star");
     starBtn.textContent = isFavorited(text) ? "★ Favorited" : "☆ Favorite";
+    starBtn.classList.toggle("active", isFavorited(text));
     addToHistory(text);
   }
 
@@ -280,13 +292,29 @@
 
   function initTabs() {
     const tabs = document.querySelectorAll(".tab-btn");
+    const indicator = document.getElementById("tab-indicator");
+
+    function moveIndicator(tab) {
+      if (!indicator) return;
+      indicator.style.width = `${tab.offsetWidth}px`;
+      indicator.style.left = `${tab.offsetLeft}px`;
+    }
+
     tabs.forEach((tab) => {
       tab.addEventListener("click", () => {
         tabs.forEach((t) => t.classList.remove("active"));
         tab.classList.add("active");
         document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
         document.getElementById(tab.dataset.target).classList.add("active");
+        moveIndicator(tab);
       });
+    });
+
+    const activeTab = document.querySelector(".tab-btn.active");
+    if (activeTab) moveIndicator(activeTab);
+    window.addEventListener("resize", () => {
+      const current = document.querySelector(".tab-btn.active");
+      if (current) moveIndicator(current);
     });
   }
 
@@ -299,6 +327,8 @@
       const card = document.createElement("div");
       card.className = "card";
       card.id = `card-${category}`;
+      card.style.setProperty("--card-accent", meta.color);
+      card.style.setProperty("--card-tint", meta.tint);
       card.innerHTML = `
         <div class="card-header">
           <span class="card-icon">${meta.icon}</span>
@@ -334,6 +364,7 @@
       if (!text) return;
       toggleFavorite(text);
       e.currentTarget.textContent = isFavorited(text) ? "★ Favorited" : "☆ Favorite";
+      e.currentTarget.classList.toggle("active", isFavorited(text));
     });
 
     generateFullPrompt();
