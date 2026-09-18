@@ -2,18 +2,19 @@
   "use strict";
 
   const CATEGORY_META = {
-    words: { label: "Word", icon: "✎", color: "#7c6fdc", tint: "#efedfd" },
-    scenarios: { label: "Scenario", icon: "🎬", color: "#dc8f3f", tint: "#fdf1e0" },
-    objects: { label: "Object", icon: "◈", color: "#3f9d8f", tint: "#e4f5f2" },
-    things: { label: "Thing", icon: "☺", color: "#d9536b", tint: "#fbe6ea" },
-    scenes: { label: "Scene", icon: "🏔", color: "#3f7cc9", tint: "#e6f0fb" }
+    words: { label: "Word", icon: "categoryWord", color: "#8b7ef0", tint: "#efecfd" },
+    scenarios: { label: "Scenario", icon: "categoryScenario", color: "#f0a339", tint: "#fdf0dc" },
+    objects: { label: "Object", icon: "categoryObject", color: "#31b3a0", tint: "#dff6f1" },
+    things: { label: "Thing", icon: "categoryThing", color: "#ef5f81", tint: "#fce4ea" },
+    scenes: { label: "Scene", icon: "categoryScene", color: "#3d8bf0", tint: "#e2eefd" }
   };
 
   const STORAGE_KEYS = {
     history: "sketchbook.history",
     favorites: "sketchbook.favorites",
     settings: "sketchbook.settings",
-    practice: "sketchbook.practice"
+    practice: "sketchbook.practice",
+    theme: "sketchbook.theme"
   };
 
   const MAX_HISTORY = 60;
@@ -39,6 +40,29 @@
     } catch (e) {
       return false;
     }
+  }
+
+  /* ---------- Theme (dark by default, with a manual light-mode toggle) ---------- */
+
+  function applyTheme(theme) {
+    if (theme === "light") {
+      document.documentElement.setAttribute("data-theme", "light");
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+    }
+    const toggle = document.getElementById("theme-toggle");
+    if (toggle) toggle.innerHTML = theme === "light" ? ICONS.moon : ICONS.sun;
+  }
+
+  function initTheme() {
+    const stored = load(STORAGE_KEYS.theme, "dark");
+    applyTheme(stored);
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+      const isLight = document.documentElement.getAttribute("data-theme") === "light";
+      const next = isLight ? "dark" : "light";
+      applyTheme(next);
+      save(STORAGE_KEYS.theme, next);
+    });
   }
 
   /* ---------- Settings (category toggles + weirdness) ---------- */
@@ -207,7 +231,7 @@
 
     document.getElementById("full-prompt-card").dataset.text = text;
     const starBtn = document.getElementById("full-prompt-star");
-    starBtn.textContent = isFavorited(text) ? "★ Favorited" : "☆ Favorite";
+    setButtonContent(starBtn, isFavorited(text) ? "starFilled" : "starOutline", isFavorited(text) ? "Favorited" : "Favorite");
     starBtn.classList.toggle("active", isFavorited(text));
     addToHistory(text);
   }
@@ -420,7 +444,7 @@
       } else {
         const placeholder = document.createElement("div");
         placeholder.className = "practice-thumb practice-thumb-empty";
-        placeholder.textContent = "✎";
+        placeholder.innerHTML = ICONS.pencil;
         row.appendChild(placeholder);
       }
 
@@ -439,7 +463,8 @@
       const removeBtn = document.createElement("button");
       removeBtn.className = "icon-btn";
       removeBtn.title = "Remove";
-      removeBtn.textContent = "✕";
+      removeBtn.setAttribute("aria-label", "Remove");
+      removeBtn.innerHTML = ICONS.close;
       removeBtn.addEventListener("click", () => removePracticeEntry(entry.id));
       row.appendChild(removeBtn);
 
@@ -490,17 +515,31 @@
 
   /* ---------- Clipboard ---------- */
 
-  function copyText(text, btn) {
-    const done = () => {
-      if (!btn) return;
-      const original = btn.textContent;
-      btn.textContent = "Copied!";
-      setTimeout(() => (btn.textContent = original), 1200);
-    };
+  function setButtonContent(btn, iconName, label) {
+    btn.innerHTML = `<span class="btn-icon">${ICONS[iconName]}</span>${label}`;
+  }
+
+  function flashIcon(btn, iconName, duration) {
+    const original = btn.innerHTML;
+    btn.innerHTML = ICONS[iconName];
+    setTimeout(() => {
+      btn.innerHTML = original;
+    }, duration || 1200);
+  }
+
+  function flashButtonContent(btn, iconName, label, duration) {
+    const original = btn.innerHTML;
+    setButtonContent(btn, iconName, label);
+    setTimeout(() => {
+      btn.innerHTML = original;
+    }, duration || 1200);
+  }
+
+  function copyText(text, onDone) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+      navigator.clipboard.writeText(text).then(onDone).catch(() => fallbackCopy(text, onDone));
     } else {
-      fallbackCopy(text, done);
+      fallbackCopy(text, onDone);
     }
   }
 
@@ -537,7 +576,8 @@
     const copyBtn = document.createElement("button");
     copyBtn.className = "icon-btn";
     copyBtn.title = "Copy";
-    copyBtn.textContent = "⧉";
+    copyBtn.setAttribute("aria-label", "Copy");
+    copyBtn.innerHTML = ICONS.copy;
     copyBtn.addEventListener("click", () => onCopy(copyBtn));
     actions.appendChild(copyBtn);
 
@@ -545,7 +585,8 @@
       const sketchBtn = document.createElement("button");
       sketchBtn.className = "icon-btn" + (sketched ? " active" : "");
       sketchBtn.title = sketched ? "Logged as sketched" : "Mark as sketched";
-      sketchBtn.textContent = "✓";
+      sketchBtn.setAttribute("aria-label", sketchBtn.title);
+      sketchBtn.innerHTML = ICONS.check;
       sketchBtn.addEventListener("click", onSketch);
       actions.appendChild(sketchBtn);
     }
@@ -554,7 +595,8 @@
       const photoBtn = document.createElement("button");
       photoBtn.className = "icon-btn";
       photoBtn.title = "Attach a photo of your sketch";
-      photoBtn.textContent = "📷";
+      photoBtn.setAttribute("aria-label", photoBtn.title);
+      photoBtn.innerHTML = ICONS.camera;
       photoBtn.addEventListener("click", onPhoto);
       actions.appendChild(photoBtn);
     }
@@ -563,7 +605,8 @@
       const starBtn = document.createElement("button");
       starBtn.className = "icon-btn" + (starred ? " active" : "");
       starBtn.title = starred ? "Unfavorite" : "Favorite";
-      starBtn.textContent = starred ? "★" : "☆";
+      starBtn.setAttribute("aria-label", starBtn.title);
+      starBtn.innerHTML = starred ? ICONS.starFilled : ICONS.starOutline;
       starBtn.addEventListener("click", onStar);
       actions.appendChild(starBtn);
     }
@@ -572,7 +615,8 @@
       const removeBtn = document.createElement("button");
       removeBtn.className = "icon-btn";
       removeBtn.title = "Remove";
-      removeBtn.textContent = "✕";
+      removeBtn.setAttribute("aria-label", "Remove");
+      removeBtn.innerHTML = ICONS.close;
       removeBtn.addEventListener("click", onRemove);
       actions.appendChild(removeBtn);
     }
@@ -592,7 +636,7 @@
       const row = makeListRow(entry.text, {
         starred: isFavorited(entry.text),
         onStar: () => toggleFavorite(entry.text),
-        onCopy: (btn) => copyText(entry.text, btn),
+        onCopy: (btn) => copyText(entry.text, () => flashIcon(btn, "check")),
         sketched: hasBeenSketched(entry.text),
         onSketch: () => addPracticeEntry(entry.text, null),
         onPhoto: () => requestPhotoFor(entry.text)
@@ -613,7 +657,7 @@
         starred: true,
         onStar: () => toggleFavorite(entry.text),
         onRemove: () => removeFavorite(entry.id),
-        onCopy: (btn) => copyText(entry.text, btn),
+        onCopy: (btn) => copyText(entry.text, () => flashIcon(btn, "check")),
         sketched: hasBeenSketched(entry.text),
         onSketch: () => addPracticeEntry(entry.text, null),
         onPhoto: () => requestPhotoFor(entry.text)
@@ -671,7 +715,7 @@
       label.style.setProperty("--card-tint", meta.tint);
       label.innerHTML = `
         <input type="checkbox" id="toggle-${category}" checked />
-        <span class="toggle-chip-icon">${meta.icon}</span>
+        <span class="toggle-chip-icon">${ICONS[meta.icon]}</span>
         <span>${meta.label}</span>
       `;
       wrap.appendChild(label);
@@ -713,11 +757,11 @@
       card.style.setProperty("--card-tint", meta.tint);
       card.innerHTML = `
         <div class="card-header">
-          <span class="card-icon">${meta.icon}</span>
+          <span class="card-icon">${ICONS[meta.icon]}</span>
           <span class="card-label">${meta.label}</span>
         </div>
         <div class="card-value">—</div>
-        <button class="card-shuffle" type="button" title="Shuffle ${meta.label}">⟲ Shuffle</button>
+        <button class="card-shuffle" type="button" title="Shuffle ${meta.label}"><span class="btn-icon">${ICONS.shuffle}</span>Shuffle</button>
       `;
       grid.appendChild(card);
       card.querySelector(".card-shuffle").addEventListener("click", () => generateSingle(category));
@@ -725,6 +769,10 @@
   }
 
   function init() {
+    initTheme();
+    document.querySelectorAll("[data-icon]").forEach((el) => {
+      el.innerHTML = ICONS[el.dataset.icon] || "";
+    });
     buildCategoryToggles();
     initWeirdnessSlider();
     buildCategoryCards();
@@ -741,15 +789,16 @@
     document.getElementById("clear-practice-btn").addEventListener("click", clearPractice);
 
     document.getElementById("full-prompt-copy").addEventListener("click", (e) => {
+      const btn = e.currentTarget;
       const text = document.getElementById("full-prompt-card").dataset.text || "";
-      if (text) copyText(text, e.currentTarget);
+      if (text) copyText(text, () => flashButtonContent(btn, "check", "Copied!"));
     });
 
     document.getElementById("full-prompt-star").addEventListener("click", (e) => {
       const text = document.getElementById("full-prompt-card").dataset.text || "";
       if (!text) return;
       toggleFavorite(text);
-      e.currentTarget.textContent = isFavorited(text) ? "★ Favorited" : "☆ Favorite";
+      setButtonContent(e.currentTarget, isFavorited(text) ? "starFilled" : "starOutline", isFavorited(text) ? "Favorited" : "Favorite");
       e.currentTarget.classList.toggle("active", isFavorited(text));
     });
 

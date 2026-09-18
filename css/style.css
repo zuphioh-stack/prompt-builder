@@ -1,4 +1,26 @@
+/* Dark is the default theme (set directly here, not behind a media query),
+   so the app opens in dark mode regardless of OS preference. Adding
+   data-theme="light" on <html> (done by the theme toggle in app.js) swaps
+   in the light palette below. */
 :root {
+  --paper: #16141a;
+  --surface: #201d26;
+  --ink: #f1eef7;
+  --ink-soft: #b6b0c6;
+  --ink-faint: #837c96;
+  --accent: #ef8b5c;
+  --accent-dark: #f6a678;
+  --accent-tint: #3a2a24;
+  --line: #322e3d;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 10px 26px -14px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 22px 48px -22px rgba(0, 0, 0, 0.65);
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+}
+
+:root[data-theme="light"] {
   --paper: #fbf7ef;
   --surface: #ffffff;
   --ink: #24211d;
@@ -11,9 +33,6 @@
   --shadow-sm: 0 1px 2px rgba(36, 33, 29, 0.06);
   --shadow-md: 0 8px 24px -12px rgba(36, 33, 29, 0.18);
   --shadow-lg: 0 20px 45px -20px rgba(36, 33, 29, 0.28);
-  --radius-sm: 10px;
-  --radius-md: 16px;
-  --radius-lg: 22px;
 }
 
 * {
@@ -23,23 +42,67 @@
 body {
   margin: 0;
   background:
-    radial-gradient(circle at 1px 1px, rgba(36, 33, 29, 0.06) 1px, transparent 0) 0 0 / 22px 22px,
+    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.05) 1px, transparent 0) 0 0 / 22px 22px,
     var(--paper);
   color: var(--ink);
   font-family: "Nunito", system-ui, sans-serif;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+:root[data-theme="light"] body {
+  background:
+    radial-gradient(circle at 1px 1px, rgba(36, 33, 29, 0.06) 1px, transparent 0) 0 0 / 22px 22px,
+    var(--paper);
+}
+
+/* ---------- Paint-drip banner ---------- */
+
+.paint-drip-banner {
+  width: 100%;
+  height: 76px;
+  overflow: hidden;
+  background-image: url("../assets/paint-drip.svg");
+  background-repeat: no-repeat;
+  background-position: top center;
+  background-size: 100% auto;
 }
 
 /* ---------- Header ---------- */
 
 .site-header {
+  position: relative;
   text-align: center;
-  padding: 3.5rem 1.25rem 2rem;
+  padding: 2.5rem 1.25rem 2rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.85rem;
+}
+
+.theme-toggle {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.theme-toggle:hover {
+  transform: rotate(12deg);
+  box-shadow: var(--shadow-md);
 }
 
 .header-badge {
@@ -61,7 +124,10 @@ body {
   font-weight: 600;
   font-size: clamp(2.1rem, 5vw, 3.1rem);
   margin: 0;
-  color: var(--ink);
+  background: linear-gradient(100deg, #8b7ef0, var(--accent) 45%, #ef5f81 80%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
   letter-spacing: -0.01em;
 }
 
@@ -85,11 +151,23 @@ body {
 }
 
 .panel {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   padding: 1.5rem 1.75rem 1.75rem;
   box-shadow: var(--shadow-md);
+}
+
+.panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: linear-gradient(90deg, #8b7ef0, #f0a339, #31b3a0, #ef5f81, #3d8bf0);
 }
 
 .panel-heading {
@@ -161,6 +239,27 @@ body {
   flex-shrink: 0;
 }
 
+/* Every icon in the app is an inline SVG sized in em units, so it scales
+   with whatever font-size its container sets. */
+.card-icon svg,
+.toggle-chip-icon svg,
+.icon-btn svg,
+.btn-icon svg,
+.header-badge svg,
+.practice-thumb-empty svg,
+.theme-toggle svg {
+  width: 1em;
+  height: 1em;
+  display: block;
+}
+
+.btn-icon {
+  display: inline-flex;
+  margin-right: 0.4rem;
+  font-size: 0.95em;
+  vertical-align: -1px;
+}
+
 .card-value {
   flex: 1;
   font-size: 1.12rem;
@@ -187,6 +286,8 @@ body {
 }
 
 .card-shuffle {
+  display: inline-flex;
+  align-items: center;
   align-self: flex-start;
   background: var(--card-tint);
   border: 1px solid transparent;
@@ -260,6 +361,8 @@ body {
 /* ---------- Buttons ---------- */
 
 .btn {
+  display: inline-flex;
+  align-items: center;
   border: none;
   border-radius: 999px;
   padding: 0.6rem 1.2rem;
@@ -270,18 +373,23 @@ body {
   font-family: inherit;
 }
 
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .btn:active {
   transform: scale(0.96);
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  background: linear-gradient(120deg, #8b7ef0, var(--accent) 55%, #ef5f81);
   color: #fff;
-  box-shadow: 0 10px 20px -10px rgba(184, 92, 49, 0.65);
+  box-shadow: 0 10px 20px -10px rgba(239, 139, 92, 0.55);
 }
 
 .btn-primary:hover {
-  box-shadow: 0 14px 26px -10px rgba(184, 92, 49, 0.75);
+  box-shadow: 0 14px 26px -10px rgba(239, 139, 92, 0.65);
 }
 
 .btn-secondary {
@@ -412,12 +520,15 @@ body {
 }
 
 .icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   font-size: 1rem;
   cursor: pointer;
   color: var(--ink-soft);
-  padding: 0.2rem 0.4rem;
+  padding: 0.35rem;
   border-radius: 8px;
   transition: background 0.12s ease, color 0.12s ease, transform 0.1s ease;
 }
@@ -670,36 +781,22 @@ body {
   background: var(--ink-faint);
 }
 
-/* ---------- Dark mode ---------- */
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #17140f;
-    --surface: #211d17;
-    --ink: #f2ede3;
-    --ink-soft: #b3a99a;
-    --ink-faint: #7c7264;
-    --accent: #e08a5b;
-    --accent-dark: #f0a679;
-    --accent-tint: #3a2a1e;
-    --line: #34302a;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-    --shadow-md: 0 10px 26px -14px rgba(0, 0, 0, 0.6);
-    --shadow-lg: 0 22px 48px -22px rgba(0, 0, 0, 0.7);
-  }
-
-  body {
-    background:
-      radial-gradient(circle at 1px 1px, rgba(242, 237, 227, 0.06) 1px, transparent 0) 0 0 / 22px 22px,
-      var(--paper);
-  }
-}
-
 /* ---------- Responsive ---------- */
 
 @media (max-width: 480px) {
+  .paint-drip-banner {
+    height: 48px;
+  }
+
   .site-header {
-    padding: 2.5rem 1rem 1.5rem;
+    padding: 1.75rem 1rem 1.5rem;
+  }
+
+  .theme-toggle {
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 2.1rem;
+    height: 2.1rem;
   }
 
   .panel {
