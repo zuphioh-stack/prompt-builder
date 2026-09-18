@@ -12,10 +12,7 @@
   };
 
   const STORAGE_KEYS = {
-    history: "sketchbook.history",
-    favorites: "sketchbook.favorites",
     settings: "sketchbook.settings",
-    practice: "sketchbook.practice",
     theme: "sketchbook.theme"
   };
 
@@ -24,7 +21,11 @@
   const PHOTO_MAX_DIMENSION = 480;
   const PHOTO_QUALITY = 0.6;
 
-  /* ---------- Persistence helpers ---------- */
+  /* ---------- Local persistence (per-person UI preferences only) ---------- */
+  // History, favorites, and the practice log are shared between the two of
+  // you and live in Supabase (see the data layer further down). Only
+  // personal generator preferences — color theme, enabled categories,
+  // content themes, weirdness — stay in this browser's localStorage.
 
   function load(key, fallback) {
     try {
@@ -101,11 +102,6 @@
   }
 
   /* ---------- Shuffle bags — one "safe" pool, one "wild" (unfiltered) pool ---------- */
-  // Each draw independently rolls against the weirdness setting to decide
-  // which pool to pull from, so the mix of sensible vs. surprising results
-  // matches the slider on average without needing to rebuild anything.
-  // The pools themselves (promptData) get rebuilt from scratch whenever the
-  // selected content themes change — see rebuildPromptData().
 
   let promptData = buildPromptData(settings.themes);
   const bags = { safe: {}, all: {} };
@@ -154,9 +150,6 @@
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
 
-  // (re)plays a CSS animation class on an element, even if it's already
-  // present (e.g. clicking "Shuffle" twice fast) — removing the class,
-  // forcing a reflow, then re-adding it restarts the animation from scratch.
   function replayAnimation(el, className) {
     if (!el) return;
     el.classList.remove(className);
@@ -207,9 +200,6 @@
     return PROMPT_TEMPLATES.filter((tpl) => tpl.categories.every(isCategoryEnabled));
   }
 
-  // Prefer templates that weave multiple categories together; the
-  // single-category "Draw {x}." templates only come into play when nothing
-  // richer is available (i.e. very few categories are enabled).
   function templatesToUse() {
     const eligible = eligibleTemplates();
     const rich = eligible.filter((tpl) => tpl.categories.length > 1);
@@ -256,9 +246,6 @@
     const generateBtn = document.getElementById("generate-prompt-btn");
     const iconEl = generateBtn.querySelector(".btn-icon");
 
-    // A brief, deliberate "generating" beat — the icon spins and the old
-    // text fades while the new prompt (already picked above) waits to be
-    // revealed, so clicking always feels like something happened.
     generateBtn.disabled = true;
     iconEl.innerHTML = ICONS.spinner;
     iconEl.classList.add("spin-loop");
@@ -279,59 +266,177 @@
     addToHistory(text);
   }
 
-  /* ---------- History / favorites ---------- */
+  /* ---------- Shared data layer (Supabase) ---------- */
+  // History, favorites, and the practice log are shared between both
+  // accounts. Row Level Security (see supabase/schema.sql) means everyone
+  // can READ every row, but each person can only INSERT/DELETE their own —
+  // that's enforced by the database itself, not just this code.
 
-  let history = load(STORAGE_KEYS.history, []);
-  let favorites = load(STORAGE_KEYS.favorites, []);
+  let currentUser = null; // { id, username }
+  let history = [];
+  let favorites = [];
+  let practiceLog = [];
+  let realtimeChannel = null;
 
-  function addToHistory(text) {
-    const entry = { id: Date.now() + "-" + Math.random().toString(36).slice(2, 7), text };
-    history.unshift(entry);
+  function myId() {
+    return currentUser ? currentUser.id : null;
+  }
+
+  function mapPracticeRow(row) {
+    return {
+      id: row.id,
+      user_id: row.user_id,
+      username: row.username,
+      text: row.text,
+      date: row.sketch_date,
+      photo_path: row.photo_path
+    };
+  }
+
+  async function fetchInitialData() {
+    const [historyRes, favoritesRes, practiceRes] = await Promise.all([
+      Auth.client.from("prompt_history").select("*").order("created_at", { ascending: false }).limit(MAX_HISTORY),
+      Auth.client.from("favorites").select("*").order("created_at", { ascending: false }),
+      Auth.client.from("practice_log").select("*").order("created_at", { ascending: false }).limit(MAX_PRACTICE_ENTRIES)
+    ]);
+    if (historyRes.error) console.error("Failed to load history:", historyRes.error);
+    if (favoritesRes.error) console.error("Failed to load favorites:", favoritesRes.error);
+    if (practiceRes.error) console.error("Failed to load practice log:", practiceRes.error);
+
+    history = historyRes.data || [];
+    favorites = favoritesRes.data || [];
+    practiceLog = (practiceRes.data || []).map(mapPracticeRow);
+    renderHistory();
+    renderFavorites();
+    renderPractice();
+  }
+
+  function setupRealtime() {
+    realtimeChannel = Auth.client
+      .channel("shared-data")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "prompt_history" }, (payload) => {
+        if (payload.new.user_id === myId()) return; // already applied locally on insert
+        history.unshift(payload.new);
+        if (history.length > MAX_HISTORY) history.length = MAX_HISTORY;
+        renderHistory();
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "prompt_history" }, (payload) => {
+        history = history.filter((h) => h.id !== payload.old.id);
+        renderHistory();
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "favorites" }, (payload) => {
+        if (payload.new.user_id === myId()) return;
+        favorites.unshift(payload.new);
+        renderHistory();
+        renderFavorites();
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "favorites" }, (payload) => {
+        favorites = favorites.filter((f) => f.id !== payload.old.id);
+        renderHistory();
+        renderFavorites();
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "practice_log" }, (payload) => {
+        if (payload.new.user_id === myId()) return;
+        practiceLog.unshift(mapPracticeRow(payload.new));
+        renderPractice();
+        renderHistory();
+        renderFavorites();
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "practice_log" }, (payload) => {
+        practiceLog = practiceLog.filter((e) => e.id !== payload.old.id);
+        renderPractice();
+        renderHistory();
+        renderFavorites();
+      })
+      .subscribe();
+  }
+
+  function teardownRealtime() {
+    if (realtimeChannel) {
+      Auth.client.removeChannel(realtimeChannel);
+      realtimeChannel = null;
+    }
+  }
+
+  async function addToHistory(text) {
+    const { data, error } = await Auth.client
+      .from("prompt_history")
+      .insert({ user_id: myId(), username: currentUser.username, text })
+      .select()
+      .single();
+    if (error) {
+      console.error(error);
+      return;
+    }
+    history.unshift(data);
     if (history.length > MAX_HISTORY) history.length = MAX_HISTORY;
-    save(STORAGE_KEYS.history, history);
     renderHistory();
   }
 
   function isFavorited(text) {
-    return favorites.some((f) => f.text === text);
+    return favorites.some((f) => f.text === text && f.user_id === myId());
   }
 
-  function toggleFavorite(text) {
-    if (isFavorited(text)) {
-      favorites = favorites.filter((f) => f.text !== text);
-    } else {
-      favorites.unshift({ id: Date.now() + "-" + Math.random().toString(36).slice(2, 7), text });
+  async function toggleFavorite(text) {
+    const mine = favorites.find((f) => f.text === text && f.user_id === myId());
+    if (mine) {
+      const { error } = await Auth.client.from("favorites").delete().eq("id", mine.id);
+      if (error) {
+      console.error(error);
+      return;
     }
-    save(STORAGE_KEYS.favorites, favorites);
+      favorites = favorites.filter((f) => f.id !== mine.id);
+    } else {
+      const { data, error } = await Auth.client
+        .from("favorites")
+        .insert({ user_id: myId(), username: currentUser.username, text })
+        .select()
+        .single();
+      if (error) {
+      console.error(error);
+      return;
+    }
+      favorites.unshift(data);
+    }
     renderHistory();
     renderFavorites();
   }
 
-  function removeFavorite(id) {
+  async function removeFavorite(id) {
+    const { error } = await Auth.client.from("favorites").delete().eq("id", id).eq("user_id", myId());
+    if (error) {
+      console.error(error);
+      return;
+    }
     favorites = favorites.filter((f) => f.id !== id);
-    save(STORAGE_KEYS.favorites, favorites);
     renderFavorites();
     renderHistory();
   }
 
-  function clearHistory() {
-    if (!confirm("Clear all history? Favorites will be kept.")) return;
-    history = [];
-    save(STORAGE_KEYS.history, history);
+  async function clearHistory() {
+    if (!confirm("Clear your history entries? Your partner's stay.")) return;
+    const { error } = await Auth.client.from("prompt_history").delete().eq("user_id", myId());
+    if (error) {
+      console.error(error);
+      return;
+    }
+    history = history.filter((h) => h.user_id !== myId());
     renderHistory();
   }
 
-  function clearFavorites() {
-    if (!confirm("Clear all favorites?")) return;
-    favorites = [];
-    save(STORAGE_KEYS.favorites, favorites);
+  async function clearFavorites() {
+    if (!confirm("Clear your favorites? Your partner's stay.")) return;
+    const { error } = await Auth.client.from("favorites").delete().eq("user_id", myId());
+    if (error) {
+      console.error(error);
+      return;
+    }
+    favorites = favorites.filter((f) => f.user_id !== myId());
     renderFavorites();
     renderHistory();
   }
 
   /* ---------- Practice log (streaks + optional photos) ---------- */
-
-  let practiceLog = load(STORAGE_KEYS.practice, []);
 
   function todayKey() {
     return formatDateKey(new Date());
@@ -344,38 +449,59 @@
     return `${y}-${m}-${d}`;
   }
 
-  function addPracticeEntry(text, photo) {
-    const entry = {
-      id: Date.now() + "-" + Math.random().toString(36).slice(2, 7),
-      text,
-      date: todayKey(),
-      timestamp: Date.now(),
-      photo: photo || null
-    };
-    practiceLog.unshift(entry);
-    if (practiceLog.length > MAX_PRACTICE_ENTRIES) practiceLog.length = MAX_PRACTICE_ENTRIES;
-    if (!save(STORAGE_KEYS.practice, practiceLog)) {
-      // Likely a storage quota hit from photos — drop the oldest few and retry once.
-      practiceLog.splice(-10, 10);
-      save(STORAGE_KEYS.practice, practiceLog);
+  async function addPracticeEntry(text, photoBlob) {
+    let photoPath = null;
+    if (photoBlob) {
+      const path = `${myId()}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+      const { error: uploadError } = await Auth.client.storage
+        .from(SKETCHES_BUCKET)
+        .upload(path, photoBlob, { contentType: "image/jpeg", upsert: false });
+      if (uploadError) console.error("Photo upload failed:", uploadError);
+      else photoPath = path;
     }
+
+    const { data, error } = await Auth.client
+      .from("practice_log")
+      .insert({
+        user_id: myId(),
+        username: currentUser.username,
+        text,
+        sketch_date: todayKey(),
+        photo_path: photoPath
+      })
+      .select()
+      .single();
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    practiceLog.unshift(mapPracticeRow(data));
     renderPractice();
     renderHistory();
     renderFavorites();
   }
 
-  function removePracticeEntry(id) {
+  async function removePracticeEntry(id) {
+    const { error } = await Auth.client.from("practice_log").delete().eq("id", id).eq("user_id", myId());
+    if (error) {
+      console.error(error);
+      return;
+    }
     practiceLog = practiceLog.filter((e) => e.id !== id);
-    save(STORAGE_KEYS.practice, practiceLog);
     renderPractice();
     renderHistory();
     renderFavorites();
   }
 
-  function clearPractice() {
-    if (!confirm("Clear your entire sketch log, including photos and streaks?")) return;
-    practiceLog = [];
-    save(STORAGE_KEYS.practice, practiceLog);
+  async function clearPractice() {
+    if (!confirm("Clear your sketch log entries (including your photos)? Your partner's stay.")) return;
+    const { error } = await Auth.client.from("practice_log").delete().eq("user_id", myId());
+    if (error) {
+      console.error(error);
+      return;
+    }
+    practiceLog = practiceLog.filter((e) => e.user_id !== myId());
     renderPractice();
     renderHistory();
     renderFavorites();
@@ -438,8 +564,6 @@
 
     const today = new Date();
     const totalDays = weeks * 7;
-    // Align columns to calendar weeks (row 0 = Sunday) so today lands in the
-    // last column, at the row matching its weekday.
     const todaySunday = new Date(today);
     todaySunday.setDate(today.getDate() - today.getDay());
     const start = new Date(todaySunday);
@@ -467,6 +591,16 @@
     });
   }
 
+  async function getSignedPhotoUrl(path) {
+    if (!path) return null;
+    const { data, error } = await Auth.client.storage.from(SKETCHES_BUCKET).createSignedUrl(path, 3600);
+    if (error) {
+      console.error("Could not get signed photo URL:", error);
+      return null;
+    }
+    return data.signedUrl;
+  }
+
   function renderPracticeGallery() {
     const list = document.getElementById("practice-list");
     list.innerHTML = "";
@@ -478,12 +612,14 @@
       const row = document.createElement("li");
       row.className = "list-row practice-row";
 
-      if (entry.photo) {
+      if (entry.photo_path) {
         const img = document.createElement("img");
         img.className = "practice-thumb";
-        img.src = entry.photo;
         img.alt = "Sketch for: " + entry.text;
         row.appendChild(img);
+        getSignedPhotoUrl(entry.photo_path).then((url) => {
+          if (url) img.src = url;
+        });
       } else {
         const placeholder = document.createElement("div");
         placeholder.className = "practice-thumb practice-thumb-empty";
@@ -493,23 +629,29 @@
 
       const info = document.createElement("div");
       info.className = "practice-info";
+      const author = document.createElement("span");
+      author.className = "entry-author";
+      author.textContent = entry.username;
       const text = document.createElement("span");
       text.className = "list-text";
       text.textContent = entry.text;
       const date = document.createElement("span");
       date.className = "practice-date";
       date.textContent = entry.date;
+      info.appendChild(author);
       info.appendChild(text);
       info.appendChild(date);
       row.appendChild(info);
 
-      const removeBtn = document.createElement("button");
-      removeBtn.className = "icon-btn";
-      removeBtn.title = "Remove";
-      removeBtn.setAttribute("aria-label", "Remove");
-      removeBtn.innerHTML = ICONS.close;
-      removeBtn.addEventListener("click", () => removePracticeEntry(entry.id));
-      row.appendChild(removeBtn);
+      if (entry.user_id === myId()) {
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "icon-btn";
+        removeBtn.title = "Remove";
+        removeBtn.setAttribute("aria-label", "Remove");
+        removeBtn.innerHTML = ICONS.close;
+        removeBtn.addEventListener("click", () => removePracticeEntry(entry.id));
+        row.appendChild(removeBtn);
+      }
 
       list.appendChild(row);
     });
@@ -521,6 +663,9 @@
     renderPracticeGallery();
   }
 
+  // Compresses an uploaded/captured photo down to a small JPEG Blob before
+  // it ever leaves the browser, both for faster uploads and to keep shared
+  // storage usage low.
   function compressImage(file, maxDimension, quality) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -539,7 +684,14 @@
           canvas.width = width;
           canvas.height = height;
           canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL("image/jpeg", quality));
+          canvas.toBlob(
+            (blob) => {
+              if (blob) resolve(blob);
+              else reject(new Error("Could not compress image"));
+            },
+            "image/jpeg",
+            quality
+          );
         };
         img.onerror = reject;
         img.src = e.target.result;
@@ -604,14 +756,23 @@
 
   /* ---------- List rendering (History / Favorites) ---------- */
 
-  function makeListRow(text, { starred, onStar, onRemove, onCopy, sketched, onSketch, onPhoto }) {
+  function makeListRow(text, { username, starred, onStar, onRemove, onCopy, sketched, onSketch, onPhoto }) {
     const row = document.createElement("li");
     row.className = "list-row";
 
+    const textWrap = document.createElement("div");
+    textWrap.className = "list-text-wrap";
+    if (username) {
+      const author = document.createElement("span");
+      author.className = "entry-author";
+      author.textContent = username;
+      textWrap.appendChild(author);
+    }
     const span = document.createElement("span");
     span.className = "list-text";
     span.textContent = text;
-    row.appendChild(span);
+    textWrap.appendChild(span);
+    row.appendChild(textWrap);
 
     const actions = document.createElement("div");
     actions.className = "list-actions";
@@ -651,8 +812,9 @@
       starBtn.setAttribute("aria-label", starBtn.title);
       starBtn.innerHTML = starred ? ICONS.starFilled : ICONS.starOutline;
       starBtn.addEventListener("click", () => {
+        const wasFavorited = isFavorited(text);
         onStar();
-        if (isFavorited(text)) replayAnimation(starBtn, "star-pop");
+        if (!wasFavorited) replayAnimation(starBtn, "star-pop");
       });
       actions.appendChild(starBtn);
     }
@@ -680,6 +842,7 @@
     }
     history.forEach((entry) => {
       const row = makeListRow(entry.text, {
+        username: entry.username,
         starred: isFavorited(entry.text),
         onStar: () => toggleFavorite(entry.text),
         onCopy: (btn) => copyText(entry.text, () => flashIcon(btn, "check")),
@@ -700,9 +863,10 @@
     }
     favorites.forEach((entry) => {
       const row = makeListRow(entry.text, {
+        username: entry.username,
         starred: true,
         onStar: () => toggleFavorite(entry.text),
-        onRemove: () => removeFavorite(entry.id),
+        onRemove: entry.user_id === myId() ? () => removeFavorite(entry.id) : null,
         onCopy: (btn) => copyText(entry.text, () => flashIcon(btn, "check")),
         sketched: hasBeenSketched(entry.text),
         onSketch: () => addPracticeEntry(entry.text, null),
@@ -816,7 +980,7 @@
     });
   }
 
-  /* ---------- Init ---------- */
+  /* ---------- Category cards ---------- */
 
   function buildCategoryCards() {
     const grid = document.getElementById("category-grid");
@@ -842,8 +1006,11 @@
     });
   }
 
-  function init() {
-    initTheme();
+  /* ---------- App bootstrap (one-time UI wiring) ---------- */
+
+  let appStarted = false;
+
+  function initApp() {
     document.querySelectorAll("[data-icon]").forEach((el) => {
       el.innerHTML = ICONS[el.dataset.icon] || "";
     });
@@ -853,9 +1020,6 @@
     buildCategoryCards();
     applyCategoryEnabledState();
     initTabs();
-    renderHistory();
-    renderFavorites();
-    renderPractice();
 
     document.getElementById("shuffle-all-btn").addEventListener("click", (e) => {
       replayAnimation(e.currentTarget.querySelector(".btn-icon"), "shuffle-spin");
@@ -872,14 +1036,15 @@
       if (text) copyText(text, () => flashButtonContent(btn, "check", "Copied!"));
     });
 
-    document.getElementById("full-prompt-star").addEventListener("click", (e) => {
+    document.getElementById("full-prompt-star").addEventListener("click", async (e) => {
       const text = document.getElementById("full-prompt-card").dataset.text || "";
       if (!text) return;
-      toggleFavorite(text);
+      const wasFavorited = isFavorited(text);
+      await toggleFavorite(text);
       const nowFavorited = isFavorited(text);
       setButtonContent(e.currentTarget, nowFavorited ? "starFilled" : "starOutline", nowFavorited ? "Favorited" : "Favorite");
       e.currentTarget.classList.toggle("active", nowFavorited);
-      if (nowFavorited) replayAnimation(e.currentTarget.querySelector(".btn-icon"), "star-pop");
+      if (!wasFavorited && nowFavorited) replayAnimation(e.currentTarget.querySelector(".btn-icon"), "star-pop");
     });
 
     document.getElementById("practice-photo-input").addEventListener("change", async (e) => {
@@ -889,15 +1054,84 @@
       pendingPhotoText = null;
       if (!file || !targetText) return;
       try {
-        const dataUrl = await compressImage(file, PHOTO_MAX_DIMENSION, PHOTO_QUALITY);
-        addPracticeEntry(targetText, dataUrl);
+        const blob = await compressImage(file, PHOTO_MAX_DIMENSION, PHOTO_QUALITY);
+        await addPracticeEntry(targetText, blob);
       } catch (err) {
-        addPracticeEntry(targetText, null);
+        await addPracticeEntry(targetText, null);
       }
     });
 
-    generateFullPrompt();
+    document.getElementById("logout-btn").addEventListener("click", () => {
+      Auth.logout();
+    });
   }
 
-  document.addEventListener("DOMContentLoaded", init);
+  /* ---------- Auth gating ---------- */
+
+  function showAuthScreen() {
+    document.getElementById("app-root").hidden = true;
+    document.getElementById("auth-screen").hidden = false;
+    document.getElementById("login-password").value = "";
+  }
+
+  async function showApp(session) {
+    currentUser = { id: session.user.id, username: Auth.usernameFromSession(session) };
+    document.getElementById("account-username").textContent = currentUser.username;
+    document.getElementById("auth-screen").hidden = true;
+    document.getElementById("app-root").hidden = false;
+
+    if (!appStarted) {
+      appStarted = true;
+      initApp();
+      await fetchInitialData();
+      setupRealtime();
+      generateFullPrompt();
+    } else {
+      await fetchInitialData();
+    }
+  }
+
+  function handleSignedOut() {
+    teardownRealtime();
+    history = [];
+    favorites = [];
+    practiceLog = [];
+    currentUser = null;
+    showAuthScreen();
+  }
+
+  function initAuthScreen() {
+    const form = document.getElementById("login-form");
+    const errorEl = document.getElementById("login-error");
+    const submitBtn = document.getElementById("login-submit");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const username = document.getElementById("login-username").value;
+      const password = document.getElementById("login-password").value;
+      errorEl.hidden = true;
+      const originalHTML = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Signing in…";
+      try {
+        await Auth.login(username, password);
+        // Auth.onChange (registered below) picks up the new session from here.
+      } catch (err) {
+        errorEl.textContent = "Wrong username or password.";
+        errorEl.hidden = false;
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalHTML;
+      }
+    });
+
+    Auth.onChange((session) => {
+      if (session) showApp(session);
+      else handleSignedOut();
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    initTheme();
+    initAuthScreen();
+  });
 })();
