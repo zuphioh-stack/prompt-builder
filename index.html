@@ -21,6 +21,25 @@
   <main class="container">
     <section class="panel">
       <div class="panel-heading">
+        <h2>Customize</h2>
+        <span class="settings-hint">Choose what to draw from</span>
+      </div>
+      <div id="category-toggles" class="category-toggles"></div>
+      <div class="weirdness-control">
+        <div class="weirdness-label-row">
+          <label for="weirdness-slider">Weirdness</label>
+          <span id="weirdness-value" class="weirdness-value">Sensible combos only</span>
+        </div>
+        <input id="weirdness-slider" type="range" min="0" max="100" step="5" value="0" />
+        <div class="weirdness-scale">
+          <span>Sensible</span>
+          <span>Anything goes</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
         <h2>Building blocks</h2>
         <button id="shuffle-all-btn" class="btn btn-secondary" type="button">⟲ Shuffle all</button>
       </div>
@@ -33,6 +52,7 @@
       </div>
       <div id="full-prompt-card" class="full-prompt-card">
         <p id="full-prompt-text">—</p>
+        <p id="full-prompt-empty-message" class="full-prompt-empty-message">Enable more categories above to generate a full prompt.</p>
         <div class="full-prompt-actions">
           <button id="generate-prompt-btn" class="btn btn-primary" type="button">✏ New prompt</button>
           <button id="full-prompt-copy" class="btn btn-ghost" type="button">⧉ Copy</button>
@@ -45,6 +65,7 @@
       <div class="panel-heading tabs">
         <button class="tab-btn active" data-target="tab-history" type="button">History</button>
         <button class="tab-btn" data-target="tab-favorites" type="button">Favorites</button>
+        <button class="tab-btn" data-target="tab-practice" type="button">Practice log</button>
         <span id="tab-indicator" class="tab-indicator"></span>
       </div>
 
@@ -63,12 +84,26 @@
         </div>
         <ul id="favorites-list" class="item-list"></ul>
       </div>
+
+      <div id="tab-practice" class="tab-panel">
+        <div class="practice-stats" id="practice-stats"></div>
+        <div class="heatmap-wrap">
+          <div id="practice-heatmap" class="heatmap"></div>
+        </div>
+        <div class="list-heading">
+          <span>Sketch log</span>
+          <button id="clear-practice-btn" class="btn btn-ghost btn-small" type="button">Clear</button>
+        </div>
+        <ul id="practice-list" class="item-list practice-gallery"></ul>
+      </div>
     </section>
   </main>
 
   <footer class="site-footer">
     <p>A text-only idea generator for sketching practice. No images are generated here.</p>
   </footer>
+
+  <input id="practice-photo-input" type="file" accept="image/*" capture="environment" style="display:none" />
 
   <script src="js/data.js"></script>
   <script src="js/app.js"></script>

@@ -11,38 +11,95 @@
 
   const STORAGE_KEYS = {
     history: "sketchbook.history",
-    favorites: "sketchbook.favorites"
+    favorites: "sketchbook.favorites",
+    settings: "sketchbook.settings",
+    practice: "sketchbook.practice"
   };
 
   const MAX_HISTORY = 60;
+  const MAX_PRACTICE_ENTRIES = 200;
+  const PHOTO_MAX_DIMENSION = 480;
+  const PHOTO_QUALITY = 0.6;
 
-  /* ---------- Shuffle bags (no immediate repeats until a category is exhausted) ---------- */
+  /* ---------- Persistence helpers ---------- */
 
-  const bags = {};
+  function load(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (e) {
+      return fallback;
+    }
+  }
 
-  function refillBag(category) {
-    const items = PROMPT_DATA[category].slice();
+  function save(key, data) {
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /* ---------- Settings (category toggles + weirdness) ---------- */
+
+  const settings = Object.assign(
+    {
+      categories: { words: true, scenarios: true, objects: true, things: true, scenes: true },
+      weirdness: 0
+    },
+    load(STORAGE_KEYS.settings, {})
+  );
+  settings.categories = Object.assign(
+    { words: true, scenarios: true, objects: true, things: true, scenes: true },
+    settings.categories
+  );
+
+  function saveSettings() {
+    save(STORAGE_KEYS.settings, settings);
+  }
+
+  function isCategoryEnabled(category) {
+    return settings.categories[category] !== false;
+  }
+
+  function enabledCategoryCount() {
+    return Object.keys(CATEGORY_META).filter(isCategoryEnabled).length;
+  }
+
+  /* ---------- Shuffle bags — one "safe" pool, one "wild" (unfiltered) pool ---------- */
+  // Each draw independently rolls against the weirdness setting to decide
+  // which pool to pull from, so the mix of sensible vs. surprising results
+  // matches the slider on average without needing to rebuild anything.
+
+  const bags = { safe: {}, all: {} };
+
+  function poolFor(kind, category) {
+    return kind === "all" ? PROMPT_DATA_ALL[category] : PROMPT_DATA_SAFE[category];
+  }
+
+  function refillBag(kind, category) {
+    const items = poolFor(kind, category).slice();
     for (let i = items.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [items[i], items[j]] = [items[j], items[i]];
     }
-    bags[category] = items;
+    bags[kind][category] = items;
   }
 
   function draw(category, exclude) {
-    if (!bags[category] || bags[category].length === 0) {
-      refillBag(category);
+    const kind = Math.random() * 100 < settings.weirdness ? "all" : "safe";
+    if (!bags[kind][category] || bags[kind][category].length === 0) {
+      refillBag(kind, category);
     }
-    let value = bags[category].pop();
-    if (exclude && value === exclude && bags[category].length > 0) {
-      const next = bags[category].pop();
-      bags[category].unshift(value);
+    let value = bags[kind][category].pop();
+    if (exclude && value === exclude && bags[kind][category].length > 0) {
+      const next = bags[kind][category].pop();
+      bags[kind][category].unshift(value);
       value = next;
     }
     return value;
   }
-
-  Object.keys(PROMPT_DATA).forEach(refillBag);
 
   /* ---------- Current single-card values ---------- */
 
@@ -56,33 +113,63 @@
 
   function renderCard(category) {
     const valueEl = document.querySelector(`#card-${category} .card-value`);
-    valueEl.textContent = capitalize(current[category]);
+    valueEl.textContent = current[category] ? capitalize(current[category]) : "—";
     valueEl.classList.remove("pop");
-    // eslint-disable-next-line no-unused-expressions
     void valueEl.offsetWidth; // restart animation
     valueEl.classList.add("pop");
   }
 
   function generateSingle(category) {
+    if (!isCategoryEnabled(category)) return;
     current[category] = draw(category, current[category]);
     renderCard(category);
   }
 
   function shuffleAll() {
-    Object.keys(PROMPT_DATA).forEach(generateSingle);
+    Object.keys(CATEGORY_META).forEach(generateSingle);
+  }
+
+  function applyCategoryEnabledState() {
+    Object.keys(CATEGORY_META).forEach((category) => {
+      const card = document.getElementById(`card-${category}`);
+      const toggle = document.getElementById(`toggle-${category}`);
+      const enabled = isCategoryEnabled(category);
+      if (card) {
+        card.classList.toggle("disabled", !enabled);
+        const shuffleBtn = card.querySelector(".card-shuffle");
+        if (shuffleBtn) shuffleBtn.disabled = !enabled;
+        if (enabled && !current[category]) generateSingle(category);
+      }
+      if (toggle) {
+        toggle.checked = enabled;
+        toggle.closest(".toggle-chip").classList.toggle("checked", enabled);
+      }
+    });
+    refreshFullPromptAvailability();
   }
 
   /* ---------- Composed full prompt ---------- */
 
-  function fillTemplate(template) {
+  function eligibleTemplates() {
+    return PROMPT_TEMPLATES.filter((tpl) => tpl.categories.every(isCategoryEnabled));
+  }
+
+  function refreshFullPromptAvailability() {
+    const hasTemplates = eligibleTemplates().length > 0;
+    document.getElementById("generate-prompt-btn").disabled = !hasTemplates;
+    document.getElementById("full-prompt-text").style.display = hasTemplates ? "" : "none";
+    document.getElementById("full-prompt-empty-message").style.display = hasTemplates ? "none" : "";
+  }
+
+  function fillTemplate(templateText) {
     const thing = draw("things");
-    let thing2 = draw("things", thing);
+    const thing2 = draw("things", thing);
     const scenario = draw("scenarios");
     const object = draw("objects");
     const scene = draw("scenes");
     const word = draw("words");
 
-    return template
+    return templateText
       .replace(/{thing_cap}/g, capitalize(thing))
       .replace(/{thing2}/g, thing2)
       .replace(/{thing}/g, thing)
@@ -94,8 +181,13 @@
   }
 
   function generateFullPrompt() {
-    const template = PROMPT_TEMPLATES[Math.floor(Math.random() * PROMPT_TEMPLATES.length)];
-    const text = fillTemplate(template);
+    const templates = eligibleTemplates();
+    if (templates.length === 0) {
+      refreshFullPromptAvailability();
+      return;
+    }
+    const template = templates[Math.floor(Math.random() * templates.length)];
+    const text = fillTemplate(template.text);
     const textEl = document.getElementById("full-prompt-text");
 
     textEl.classList.add("fade-out");
@@ -111,27 +203,10 @@
     addToHistory(text);
   }
 
-  /* ---------- Persistence ---------- */
+  /* ---------- History / favorites ---------- */
 
-  function load(key) {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : [];
-    } catch (e) {
-      return [];
-    }
-  }
-
-  function save(key, data) {
-    try {
-      localStorage.setItem(key, JSON.stringify(data));
-    } catch (e) {
-      /* storage unavailable — history just won't persist */
-    }
-  }
-
-  let history = load(STORAGE_KEYS.history);
-  let favorites = load(STORAGE_KEYS.favorites);
+  let history = load(STORAGE_KEYS.history, []);
+  let favorites = load(STORAGE_KEYS.favorites, []);
 
   function addToHistory(text) {
     const entry = { id: Date.now() + "-" + Math.random().toString(36).slice(2, 7), text };
@@ -178,6 +253,232 @@
     renderHistory();
   }
 
+  /* ---------- Practice log (streaks + optional photos) ---------- */
+
+  let practiceLog = load(STORAGE_KEYS.practice, []);
+
+  function todayKey() {
+    return formatDateKey(new Date());
+  }
+
+  function formatDateKey(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  function addPracticeEntry(text, photo) {
+    const entry = {
+      id: Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+      text,
+      date: todayKey(),
+      timestamp: Date.now(),
+      photo: photo || null
+    };
+    practiceLog.unshift(entry);
+    if (practiceLog.length > MAX_PRACTICE_ENTRIES) practiceLog.length = MAX_PRACTICE_ENTRIES;
+    if (!save(STORAGE_KEYS.practice, practiceLog)) {
+      // Likely a storage quota hit from photos — drop the oldest few and retry once.
+      practiceLog.splice(-10, 10);
+      save(STORAGE_KEYS.practice, practiceLog);
+    }
+    renderPractice();
+    renderHistory();
+    renderFavorites();
+  }
+
+  function removePracticeEntry(id) {
+    practiceLog = practiceLog.filter((e) => e.id !== id);
+    save(STORAGE_KEYS.practice, practiceLog);
+    renderPractice();
+    renderHistory();
+    renderFavorites();
+  }
+
+  function clearPractice() {
+    if (!confirm("Clear your entire sketch log, including photos and streaks?")) return;
+    practiceLog = [];
+    save(STORAGE_KEYS.practice, practiceLog);
+    renderPractice();
+    renderHistory();
+    renderFavorites();
+  }
+
+  function hasBeenSketched(text) {
+    return practiceLog.some((e) => e.text === text);
+  }
+
+  function computeStreaks() {
+    const dates = new Set(practiceLog.map((e) => e.date));
+    let current = 0;
+    const cursor = new Date();
+    if (!dates.has(formatDateKey(cursor))) cursor.setDate(cursor.getDate() - 1);
+    while (dates.has(formatDateKey(cursor))) {
+      current++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+
+    const sorted = Array.from(dates).sort();
+    let best = 0;
+    let run = 0;
+    let prev = null;
+    sorted.forEach((dateStr) => {
+      if (prev) {
+        const prevDate = new Date(prev);
+        prevDate.setDate(prevDate.getDate() + 1);
+        run = formatDateKey(prevDate) === dateStr ? run + 1 : 1;
+      } else {
+        run = 1;
+      }
+      best = Math.max(best, run);
+      prev = dateStr;
+    });
+
+    return { current, best: Math.max(best, current), totalDays: dates.size, totalEntries: practiceLog.length };
+  }
+
+  function renderPracticeStats() {
+    const stats = computeStreaks();
+    const el = document.getElementById("practice-stats");
+    el.innerHTML = `
+      <div class="stat-tile"><span class="stat-value">${stats.current}</span><span class="stat-label">day streak</span></div>
+      <div class="stat-tile"><span class="stat-value">${stats.best}</span><span class="stat-label">best streak</span></div>
+      <div class="stat-tile"><span class="stat-value">${stats.totalDays}</span><span class="stat-label">days practiced</span></div>
+      <div class="stat-tile"><span class="stat-value">${stats.totalEntries}</span><span class="stat-label">sketches logged</span></div>
+    `;
+  }
+
+  function renderPracticeHeatmap() {
+    const counts = {};
+    practiceLog.forEach((e) => {
+      counts[e.date] = (counts[e.date] || 0) + 1;
+    });
+
+    const weeks = 14;
+    const container = document.getElementById("practice-heatmap");
+    container.innerHTML = "";
+    container.style.gridTemplateColumns = `repeat(${weeks}, 1fr)`;
+
+    const today = new Date();
+    const totalDays = weeks * 7;
+    // Align columns to calendar weeks (row 0 = Sunday) so today lands in the
+    // last column, at the row matching its weekday.
+    const todaySunday = new Date(today);
+    todaySunday.setDate(today.getDate() - today.getDay());
+    const start = new Date(todaySunday);
+    start.setDate(todaySunday.getDate() - (weeks - 1) * 7);
+
+    const cells = [];
+    for (let i = 0; i < totalDays; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      cells.push(d);
+    }
+
+    cells.forEach((date) => {
+      const key = formatDateKey(date);
+      const count = counts[key] || 0;
+      const cell = document.createElement("div");
+      cell.className = "heatmap-cell";
+      let level = 0;
+      if (count === 1) level = 1;
+      else if (count === 2) level = 2;
+      else if (count >= 3) level = 3;
+      cell.dataset.level = String(level);
+      cell.title = `${key}: ${count} sketch${count === 1 ? "" : "es"}`;
+      container.appendChild(cell);
+    });
+  }
+
+  function renderPracticeGallery() {
+    const list = document.getElementById("practice-list");
+    list.innerHTML = "";
+    if (practiceLog.length === 0) {
+      list.innerHTML = '<li class="empty">Nothing logged yet — mark a prompt as sketched to start your streak.</li>';
+      return;
+    }
+    practiceLog.forEach((entry) => {
+      const row = document.createElement("li");
+      row.className = "list-row practice-row";
+
+      if (entry.photo) {
+        const img = document.createElement("img");
+        img.className = "practice-thumb";
+        img.src = entry.photo;
+        img.alt = "Sketch for: " + entry.text;
+        row.appendChild(img);
+      } else {
+        const placeholder = document.createElement("div");
+        placeholder.className = "practice-thumb practice-thumb-empty";
+        placeholder.textContent = "✎";
+        row.appendChild(placeholder);
+      }
+
+      const info = document.createElement("div");
+      info.className = "practice-info";
+      const text = document.createElement("span");
+      text.className = "list-text";
+      text.textContent = entry.text;
+      const date = document.createElement("span");
+      date.className = "practice-date";
+      date.textContent = entry.date;
+      info.appendChild(text);
+      info.appendChild(date);
+      row.appendChild(info);
+
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "icon-btn";
+      removeBtn.title = "Remove";
+      removeBtn.textContent = "✕";
+      removeBtn.addEventListener("click", () => removePracticeEntry(entry.id));
+      row.appendChild(removeBtn);
+
+      list.appendChild(row);
+    });
+  }
+
+  function renderPractice() {
+    renderPracticeStats();
+    renderPracticeHeatmap();
+    renderPracticeGallery();
+  }
+
+  function compressImage(file, maxDimension, quality) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > height && width > maxDimension) {
+            height = Math.round(height * (maxDimension / width));
+            width = maxDimension;
+          } else if (height > maxDimension) {
+            width = Math.round(width * (maxDimension / height));
+            height = maxDimension;
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  let pendingPhotoText = null;
+
+  function requestPhotoFor(text) {
+    pendingPhotoText = text;
+    document.getElementById("practice-photo-input").click();
+  }
+
   /* ---------- Clipboard ---------- */
 
   function copyText(text, btn) {
@@ -210,9 +511,9 @@
     document.body.removeChild(ta);
   }
 
-  /* ---------- List rendering ---------- */
+  /* ---------- List rendering (History / Favorites) ---------- */
 
-  function makeListRow(text, { starred, onStar, onRemove, onCopy }) {
+  function makeListRow(text, { starred, onStar, onRemove, onCopy, sketched, onSketch, onPhoto }) {
     const row = document.createElement("li");
     row.className = "list-row";
 
@@ -230,6 +531,24 @@
     copyBtn.textContent = "⧉";
     copyBtn.addEventListener("click", () => onCopy(copyBtn));
     actions.appendChild(copyBtn);
+
+    if (onSketch) {
+      const sketchBtn = document.createElement("button");
+      sketchBtn.className = "icon-btn" + (sketched ? " active" : "");
+      sketchBtn.title = sketched ? "Logged as sketched" : "Mark as sketched";
+      sketchBtn.textContent = "✓";
+      sketchBtn.addEventListener("click", onSketch);
+      actions.appendChild(sketchBtn);
+    }
+
+    if (onPhoto) {
+      const photoBtn = document.createElement("button");
+      photoBtn.className = "icon-btn";
+      photoBtn.title = "Attach a photo of your sketch";
+      photoBtn.textContent = "📷";
+      photoBtn.addEventListener("click", onPhoto);
+      actions.appendChild(photoBtn);
+    }
 
     if (onStar) {
       const starBtn = document.createElement("button");
@@ -264,7 +583,10 @@
       const row = makeListRow(entry.text, {
         starred: isFavorited(entry.text),
         onStar: () => toggleFavorite(entry.text),
-        onCopy: (btn) => copyText(entry.text, btn)
+        onCopy: (btn) => copyText(entry.text, btn),
+        sketched: hasBeenSketched(entry.text),
+        onSketch: () => addPracticeEntry(entry.text, null),
+        onPhoto: () => requestPhotoFor(entry.text)
       });
       list.appendChild(row);
     });
@@ -282,7 +604,10 @@
         starred: true,
         onStar: () => toggleFavorite(entry.text),
         onRemove: () => removeFavorite(entry.id),
-        onCopy: (btn) => copyText(entry.text, btn)
+        onCopy: (btn) => copyText(entry.text, btn),
+        sketched: hasBeenSketched(entry.text),
+        onSketch: () => addPracticeEntry(entry.text, null),
+        onPhoto: () => requestPhotoFor(entry.text)
       });
       list.appendChild(row);
     });
@@ -313,8 +638,56 @@
     const activeTab = document.querySelector(".tab-btn.active");
     if (activeTab) moveIndicator(activeTab);
     window.addEventListener("resize", () => {
-      const current = document.querySelector(".tab-btn.active");
-      if (current) moveIndicator(current);
+      const active = document.querySelector(".tab-btn.active");
+      if (active) moveIndicator(active);
+    });
+  }
+
+  /* ---------- Settings UI ---------- */
+
+  function weirdnessDescription(value) {
+    if (value === 0) return "Sensible combos only";
+    if (value <= 25) return "Mostly sensible, occasional surprise";
+    if (value <= 60) return "Frequent unexpected combos";
+    return "Anything goes";
+  }
+
+  function buildCategoryToggles() {
+    const wrap = document.getElementById("category-toggles");
+    Object.keys(CATEGORY_META).forEach((category) => {
+      const meta = CATEGORY_META[category];
+      const label = document.createElement("label");
+      label.className = "toggle-chip";
+      label.style.setProperty("--card-accent", meta.color);
+      label.style.setProperty("--card-tint", meta.tint);
+      label.innerHTML = `
+        <input type="checkbox" id="toggle-${category}" checked />
+        <span class="toggle-chip-icon">${meta.icon}</span>
+        <span>${meta.label}</span>
+      `;
+      wrap.appendChild(label);
+
+      label.querySelector("input").addEventListener("change", (e) => {
+        if (!e.target.checked && enabledCategoryCount() <= 1 && isCategoryEnabled(category)) {
+          e.target.checked = true;
+          return;
+        }
+        settings.categories[category] = e.target.checked;
+        saveSettings();
+        applyCategoryEnabledState();
+      });
+    });
+  }
+
+  function initWeirdnessSlider() {
+    const slider = document.getElementById("weirdness-slider");
+    const valueLabel = document.getElementById("weirdness-value");
+    slider.value = String(settings.weirdness);
+    valueLabel.textContent = weirdnessDescription(settings.weirdness);
+    slider.addEventListener("input", (e) => {
+      settings.weirdness = Number(e.target.value);
+      valueLabel.textContent = weirdnessDescription(settings.weirdness);
+      saveSettings();
     });
   }
 
@@ -343,16 +716,20 @@
   }
 
   function init() {
+    buildCategoryToggles();
+    initWeirdnessSlider();
     buildCategoryCards();
-    shuffleAll();
+    applyCategoryEnabledState();
     initTabs();
     renderHistory();
     renderFavorites();
+    renderPractice();
 
     document.getElementById("shuffle-all-btn").addEventListener("click", shuffleAll);
     document.getElementById("generate-prompt-btn").addEventListener("click", generateFullPrompt);
     document.getElementById("clear-history-btn").addEventListener("click", clearHistory);
     document.getElementById("clear-favorites-btn").addEventListener("click", clearFavorites);
+    document.getElementById("clear-practice-btn").addEventListener("click", clearPractice);
 
     document.getElementById("full-prompt-copy").addEventListener("click", (e) => {
       const text = document.getElementById("full-prompt-card").dataset.text || "";
@@ -365,6 +742,20 @@
       toggleFavorite(text);
       e.currentTarget.textContent = isFavorited(text) ? "★ Favorited" : "☆ Favorite";
       e.currentTarget.classList.toggle("active", isFavorited(text));
+    });
+
+    document.getElementById("practice-photo-input").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      e.target.value = "";
+      const targetText = pendingPhotoText;
+      pendingPhotoText = null;
+      if (!file || !targetText) return;
+      try {
+        const dataUrl = await compressImage(file, PHOTO_MAX_DIMENSION, PHOTO_QUALITY);
+        addPracticeEntry(targetText, dataUrl);
+      } catch (err) {
+        addPracticeEntry(targetText, null);
+      }
     });
 
     generateFullPrompt();

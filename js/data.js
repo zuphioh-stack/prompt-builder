@@ -427,7 +427,9 @@ function buildWordPhrases(qualifiers, concepts) {
   return list;
 }
 
-const PROMPT_DATA = {
+// The "safe" pool — every pair has passed the compatibility checks above.
+// This is what the app draws from by default.
+const PROMPT_DATA_SAFE = {
   words: buildWordPhrases(WORD_BANKS.words.qualifiers, WORD_BANKS.words.concepts),
   scenarios: buildScenarios(WORD_BANKS.scenarios.actions, WORD_BANKS.scenarios.subjects, isScenarioCompatible),
   objects: buildArticled(WORD_BANKS.objects.adjectives, WORD_BANKS.objects.nouns, isObjectCompatible),
@@ -435,17 +437,41 @@ const PROMPT_DATA = {
   scenes: buildArticled(WORD_BANKS.scenes.modifiers, WORD_BANKS.scenes.locations, isSceneCompatible)
 };
 
+// The full, unfiltered cross product — includes every pair the compatibility
+// rules would normally drop ("a velvet anchor", "a tropical glacier"). The
+// "weirdness" slider in Settings controls how often the app pulls from this
+// pool instead of the safe one, for people who want surprising or absurd
+// combinations on purpose. Words has no filter to begin with, so its two
+// pools are identical.
+const PROMPT_DATA_ALL = {
+  words: PROMPT_DATA_SAFE.words,
+  scenarios: buildScenarios(WORD_BANKS.scenarios.actions, WORD_BANKS.scenarios.subjects),
+  objects: buildArticled(WORD_BANKS.objects.adjectives, WORD_BANKS.objects.nouns),
+  things: buildArticled(WORD_BANKS.things.adjectives, WORD_BANKS.things.nouns),
+  scenes: buildArticled(WORD_BANKS.scenes.modifiers, WORD_BANKS.scenes.locations)
+};
+
 // Sentence templates used to weave categories together into one prompt.
-// Placeholders are filled from the matching PROMPT_DATA lists.
+// Placeholders are filled from the matching PROMPT_DATA lists. `categories`
+// lists which categories must be enabled (in Settings) for this template to
+// be eligible, so the composer never has to read the sentence text to figure
+// that out.
 const PROMPT_TEMPLATES = [
-  "{thing_cap} {scenario} in {scene}.",
-  "{thing_cap} in {scene}, surrounded by {object}.",
-  "Draw {object}, as if it belongs to {thing}, with a feeling of {word}.",
-  "A scene of {word}: {thing} {scenario}.",
-  "{object_cap}, abandoned in {scene}.",
-  "{thing_cap} {scenario}, clutching {object}.",
-  "In {scene}, {thing} is {scenario}.",
-  "{thing_cap} and {thing2} {scenario} in {scene}.",
-  "{object_cap} sits in {scene}, radiating {word}.",
-  "A moment of {word}: {thing} {scenario} near {object}."
+  { text: "{thing_cap} {scenario} in {scene}.", categories: ["things", "scenarios", "scenes"] },
+  { text: "{thing_cap} in {scene}, surrounded by {object}.", categories: ["things", "scenes", "objects"] },
+  { text: "Draw {object}, as if it belongs to {thing}, with a feeling of {word}.", categories: ["objects", "things", "words"] },
+  { text: "A scene of {word}: {thing} {scenario}.", categories: ["words", "things", "scenarios"] },
+  { text: "{object_cap}, abandoned in {scene}.", categories: ["objects", "scenes"] },
+  { text: "{thing_cap} {scenario}, clutching {object}.", categories: ["things", "scenarios", "objects"] },
+  { text: "In {scene}, {thing} is {scenario}.", categories: ["scenes", "things", "scenarios"] },
+  { text: "{thing_cap} and {thing2} {scenario} in {scene}.", categories: ["things", "scenarios", "scenes"] },
+  { text: "{object_cap} sits in {scene}, radiating {word}.", categories: ["objects", "scenes", "words"] },
+  { text: "A moment of {word}: {thing} {scenario} near {object}.", categories: ["words", "things", "scenarios", "objects"] },
+  // Single-category fallbacks, so the composer still works when only one
+  // or two categories are enabled in Settings.
+  { text: "Draw {word}.", categories: ["words"] },
+  { text: "Draw {scenario}.", categories: ["scenarios"] },
+  { text: "Draw {object}.", categories: ["objects"] },
+  { text: "Draw {thing}.", categories: ["things"] },
+  { text: "Draw {scene}.", categories: ["scenes"] }
 ];
