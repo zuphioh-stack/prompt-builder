@@ -275,10 +275,37 @@ body {
   }
 }
 
-/* One-shot spin — shuffle buttons, the theme toggle on click. */
-.btn-icon.spin-once,
+/* One-shot spin — the theme toggle on click. */
 .theme-toggle.spin-once svg {
   animation: spin 0.5s cubic-bezier(0.3, 0, 0.2, 1);
+}
+
+/* Shuffle icon: a full rotary turn that presses down into the spin and
+   springs back out as it completes — a mechanical "dial" feel rather than
+   a flat rotation. Ends exactly on a multiple of 360deg at scale(1) so
+   removing the class never causes a visible snap-back. */
+@keyframes shuffleSpin {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  18% {
+    transform: scale(0.78) rotate(80deg);
+  }
+  55% {
+    transform: scale(0.84) rotate(230deg);
+  }
+  82% {
+    transform: scale(0.96) rotate(340deg);
+  }
+  100% {
+    transform: scale(1) rotate(360deg);
+  }
+}
+
+.btn-icon.shuffle-spin {
+  display: inline-flex;
+  transform-origin: 50% 50%;
+  animation: shuffleSpin 0.62s cubic-bezier(0.33, 0, 0.2, 1);
 }
 
 /* Continuous spin — the brief "generating" state on New Prompt. */

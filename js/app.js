@@ -836,7 +836,7 @@
       grid.appendChild(card);
       const shuffleBtn = card.querySelector(".card-shuffle");
       shuffleBtn.addEventListener("click", () => {
-        replayAnimation(shuffleBtn.querySelector(".btn-icon"), "spin-once");
+        replayAnimation(shuffleBtn.querySelector(".btn-icon"), "shuffle-spin");
         generateSingle(category);
       });
     });
@@ -858,7 +858,7 @@
     renderPractice();
 
     document.getElementById("shuffle-all-btn").addEventListener("click", (e) => {
-      replayAnimation(e.currentTarget.querySelector(".btn-icon"), "spin-once");
+      replayAnimation(e.currentTarget.querySelector(".btn-icon"), "shuffle-spin");
       shuffleAll();
     });
     document.getElementById("generate-prompt-btn").addEventListener("click", generateFullPrompt);

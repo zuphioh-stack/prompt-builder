@@ -9,7 +9,10 @@ const ICON_ATTRS = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke
 const ICONS = {
   pencil: `<svg ${ICON_ATTRS}><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>`,
 
-  shuffle: `<svg ${ICON_ATTRS}><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>`,
+  // A recycling-style triangle of three chasing arrows, used for every
+  // "shuffle" action — it spins with a press-down motion on click (see
+  // .shuffle-spin in style.css).
+  shuffle: `<svg ${ICON_ATTRS}><path d="M 13.52 6.64 L 17.89 14.2"/><path d="M 15.88 16 L 7.15 16"/><path d="M 6.6 13.36 L 10.96 5.8"/><path d="M 15.62 13.66 L 18.62 15.46 L 18.56 11.96"/><path d="M 8.75 14.3 L 5.7 16 L 8.75 17.7"/><path d="M 11.63 8.04 L 11.69 4.54 L 8.69 6.34"/></svg>`,
 
   copy: `<svg ${ICON_ATTRS}><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
 
