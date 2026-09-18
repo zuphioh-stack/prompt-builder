@@ -390,6 +390,159 @@ function isScenarioCompatible(action, subject) {
   return true;
 }
 
+// ---------------------------------------------------------------------------
+// Themes
+//
+// The compatibility system above stops nonsense; themes let someone curate
+// the *content* itself — draw only animals, only realistic scenes, and so
+// on. Each theme-tagged list below maps a noun/location/subject to the
+// theme(s) it fits. Untagged entries (or an empty array) are "neutral":
+// everyday items like "a key" or "a teapot" don't belong to any one theme,
+// so they stay available no matter what's selected, rather than vanishing
+// because they weren't explicitly tagged "realistic".
+//
+// Only the content-bearing lists (creatures/characters, locations, objects,
+// scenario subjects) are tagged. Modifiers/adjectives/verbs and the mood
+// "words" category stay theme-agnostic — "ancient", "glowing", or "quiet
+// longing" all fit an animal scene as easily as a realistic one.
+// ---------------------------------------------------------------------------
+
+const THEMES = [
+  { id: "animals", label: "Animals" },
+  { id: "people", label: "People" },
+  { id: "landscapes", label: "Landscapes" },
+  { id: "fantasy", label: "Fantasy" },
+  { id: "imaginative", label: "Imaginative" },
+  { id: "realistic", label: "Realistic" }
+];
+
+const THINGS_NOUN_THEMES = {
+  "cat": ["animals"], "owl": ["animals"], "fox": ["animals"], "turtle": ["animals"],
+  "raven": ["animals"], "hedgehog": ["animals"], "stag": ["animals"], "octopus": ["animals"],
+  "jellyfish": ["animals"], "chameleon": ["animals"],
+  "dragon": ["fantasy"], "griffin": ["fantasy"], "mermaid": ["fantasy"], "centaur": ["fantasy"],
+  "phoenix": ["fantasy"], "kraken": ["fantasy"], "unicorn": ["fantasy"], "gnome": ["fantasy"],
+  "fairy": ["fantasy"], "golem": ["fantasy"], "werewolf": ["fantasy"], "sphinx": ["fantasy"],
+  "minotaur": ["fantasy"], "will-o'-the-wisp": ["fantasy"], "yeti": ["fantasy"],
+  "giant": ["fantasy"], "talking crow": ["fantasy"], "clockwork spider": ["fantasy"],
+  "river spirit": ["fantasy"], "ghost": ["fantasy"],
+  "sailor": ["people", "realistic"], "street musician": ["people", "realistic"],
+  "knight": ["people", "realistic"], "librarian": ["people", "realistic"],
+  "fortune teller": ["people", "fantasy"], "wizard": ["people", "fantasy"],
+  "masked vigilante": ["people", "imaginative"], "lighthouse keeper": ["people", "realistic"],
+  "merchant": ["people", "realistic"], "circus performer": ["people", "realistic"],
+  "robot butler": ["people", "imaginative"], "astronaut": ["people", "imaginative"],
+  "detective": ["people", "realistic"], "blacksmith": ["people", "realistic"],
+  "beekeeper": ["people", "realistic"], "scarecrow": ["people", "imaginative"],
+  "puppet master": ["people", "imaginative"], "time traveler": ["people", "imaginative"],
+  "pirate captain": ["people", "imaginative"], "retired superhero": ["people", "imaginative"],
+  "tailor": ["people", "realistic"], "cartographer": ["people", "realistic"],
+  "apothecary": ["people", "fantasy"], "gravedigger": ["people", "realistic"],
+  "innkeeper": ["people", "realistic"], "shepherd": ["people", "realistic"],
+  "monk": ["people", "realistic"], "hermit": ["people", "realistic"],
+  "jester": ["people", "realistic"], "alchemist": ["people", "fantasy"],
+  "falconer": ["people", "realistic"], "potter": ["people", "realistic"],
+  "cobbler": ["people", "realistic"], "weaver": ["people", "realistic"],
+  "bard": ["people", "realistic"], "ferryman": ["people", "realistic"],
+  "gatekeeper": ["people", "realistic"], "watchmaker": ["people", "realistic"],
+  "herbalist": ["people", "realistic"], "chimney sweep": ["people", "realistic"],
+  "stowaway": ["people", "realistic"], "castaway": ["people", "realistic"],
+  "courier": ["people", "realistic"], "scribe": ["people", "realistic"],
+  "executioner": ["people", "realistic"], "undertaker": ["people", "realistic"],
+  "midwife": ["people", "realistic"], "gardener": ["people", "realistic"],
+  "locksmith": ["people", "realistic"], "glassblower": ["people", "realistic"]
+};
+
+const SCENE_LOCATION_THEMES = {
+  "lighthouse": ["realistic", "landscapes"], "night market": ["realistic", "imaginative"],
+  "forest": ["landscapes"], "floating island": ["fantasy", "imaginative"],
+  "underwater cave": ["fantasy", "landscapes"], "attic": ["realistic"],
+  "desert oasis": ["landscapes"], "rooftop garden": ["realistic", "imaginative"],
+  "train station": ["realistic"], "village": ["realistic"], "greenhouse": ["realistic"],
+  "carnival": ["imaginative", "realistic"], "library": ["realistic"],
+  "shipwreck": ["landscapes", "imaginative"], "monastery": ["realistic", "landscapes"],
+  "subway platform": ["realistic"], "witch's cottage": ["fantasy"], "junkyard": ["realistic"],
+  "canyon": ["landscapes"], "windmill": ["realistic", "landscapes"], "waterfall": ["landscapes"],
+  "city skyline": ["realistic"], "crystal cave": ["fantasy", "landscapes"], "swamp": ["landscapes"],
+  "spaceship interior": ["fantasy", "imaginative"], "marketplace": ["realistic"],
+  "bunker": ["realistic"], "cherry blossom park": ["landscapes", "realistic"],
+  "coastal cliff": ["landscapes"], "study": ["realistic"], "alley": ["realistic"],
+  "hot air balloon": ["imaginative"], "ancient ruin": ["fantasy", "landscapes"],
+  "frozen lake": ["landscapes"], "bathhouse": ["realistic"], "mountain pass": ["landscapes"],
+  "courtyard": ["realistic"], "tidepool": ["landscapes"], "harbor": ["realistic", "landscapes"],
+  "bell tower": ["realistic"], "observatory": ["realistic", "imaginative"],
+  "greenhouse dome": ["imaginative", "realistic"], "orchard": ["landscapes"],
+  "vineyard": ["landscapes"], "quarry": ["landscapes", "realistic"], "mine shaft": ["realistic"],
+  "catacomb": ["fantasy"], "chapel": ["realistic"], "monastery garden": ["realistic", "landscapes"],
+  "watchtower": ["realistic", "landscapes"], "pier": ["realistic", "landscapes"],
+  "boardwalk": ["realistic"], "amphitheater": ["realistic"], "bazaar": ["realistic"],
+  "teahouse": ["realistic"], "floating market": ["fantasy", "imaginative"],
+  "treehouse": ["imaginative"], "cave system": ["landscapes"], "glacier": ["landscapes"],
+  "volcano rim": ["landscapes"], "salt flat": ["landscapes"], "rice terrace": ["landscapes"],
+  "bamboo grove": ["landscapes"], "mangrove swamp": ["landscapes"], "sand dune": ["landscapes"],
+  "ice cave": ["landscapes", "fantasy"], "hedge maze": ["imaginative", "realistic"],
+  "botanical garden": ["realistic", "landscapes"], "rooftop cafe": ["realistic"],
+  "train yard": ["realistic"], "shipyard": ["realistic"],
+  "fishing village": ["realistic", "landscapes"], "mountain hut": ["realistic", "landscapes"],
+  "desert camp": ["realistic", "landscapes"], "riverbank": ["landscapes"],
+  "canal street": ["realistic"], "rooftop terrace": ["realistic"],
+  "courtyard garden": ["realistic"], "stone bridge": ["realistic", "landscapes"],
+  "ferry dock": ["realistic"]
+};
+
+// Objects and scenario subjects are mostly theme-neutral props (a key, a
+// letter — equally at home in any theme); only the entries with a clear
+// genre signal get tagged here.
+const OBJECT_NOUN_THEMES = {
+  "crown": ["fantasy"], "tarot card": ["fantasy"], "quiver of arrows": ["fantasy"],
+  "dagger": ["fantasy"], "sword": ["fantasy"], "shield": ["fantasy"], "helmet": ["fantasy"],
+  "gauntlet": ["fantasy"], "chalice": ["fantasy"], "goblet": ["fantasy"], "scroll": ["fantasy"],
+  "wooden mask": ["fantasy"],
+  "typewriter": ["realistic"], "camera": ["realistic"], "bicycle": ["realistic"],
+  "sewing machine": ["realistic"], "rotary phone": ["realistic"], "thermometer": ["realistic"],
+  "barometer": ["realistic"], "record player": ["realistic"], "vintage radio": ["realistic"],
+  "gramophone": ["realistic"], "telescope": ["realistic"], "pair of binoculars": ["realistic"],
+  "sextant": ["realistic"], "anvil": ["realistic"], "wrench": ["realistic"],
+  "hammer": ["realistic"], "gear": ["realistic"], "pulley": ["realistic"], "skateboard": ["realistic"],
+  "robot toy": ["imaginative"], "music box": ["imaginative"], "hourglass": ["imaginative"],
+  "paper crane": ["imaginative"], "spinning top": ["imaginative"], "kite": ["imaginative"],
+  "spinning wheel": ["imaginative"], "clock face": ["imaginative"], "pendulum": ["imaginative"],
+  "sailboat model": ["imaginative"]
+};
+
+const SCENARIO_SUBJECT_THEMES = {
+  "a magic spell": ["fantasy"], "a strange creature": ["fantasy"], "an ancient scroll": ["fantasy"],
+  "a glowing stone": ["fantasy"], "a fading star": ["fantasy", "imaginative"],
+  "a mysterious contract": ["fantasy", "imaginative"],
+  "a wild animal": ["animals"],
+  "a stranger": ["people"],
+  "a letter": ["realistic"], "a broken machine": ["realistic"], "a map": ["realistic"],
+  "a bus that never comes": ["realistic"], "an urgent message": ["realistic"],
+  "a family recipe": ["realistic"], "a family heirloom": ["realistic"],
+  "a village map": ["realistic"], "an old photograph": ["realistic"], "a torn page": ["realistic"],
+  "a locked door": ["realistic"], "a market stall": ["realistic"], "a broken clock": ["realistic"],
+  "a rusty gate": ["realistic"], "a heavy trunk": ["realistic"], "an old cart": ["realistic"]
+};
+
+// A pair passes if the filter is off (nothing selected), the entry is
+// neutral (untagged), or it carries at least one of the selected themes.
+function themeMatches(tags, selectedThemes) {
+  if (!selectedThemes || selectedThemes.length === 0) return true;
+  if (!tags || tags.length === 0) return true;
+  return tags.some((t) => selectedThemes.includes(t));
+}
+
+// Filters a base list by theme, but never returns an empty list: if a theme
+// selection happens to match nothing in this particular list (e.g.
+// "Landscapes" against the creature-noun list), the filter clearly isn't
+// meant for this list, so it falls back to the unfiltered list rather than
+// leaving a category with nothing to draw.
+function filterByTheme(list, themeMap, selectedThemes) {
+  if (!selectedThemes || selectedThemes.length === 0) return list;
+  const filtered = list.filter((item) => themeMatches(themeMap[item], selectedThemes));
+  return filtered.length > 0 ? filtered : list;
+}
+
 // "{a/an} {modifier} {noun}" — used for objects, things, and scenes.
 function buildArticled(modifiers, nouns, isCompatible) {
   const list = [];
@@ -427,29 +580,43 @@ function buildWordPhrases(qualifiers, concepts) {
   return list;
 }
 
-// The "safe" pool — every pair has passed the compatibility checks above.
-// This is what the app draws from by default.
-const PROMPT_DATA_SAFE = {
-  words: buildWordPhrases(WORD_BANKS.words.qualifiers, WORD_BANKS.words.concepts),
-  scenarios: buildScenarios(WORD_BANKS.scenarios.actions, WORD_BANKS.scenarios.subjects, isScenarioCompatible),
-  objects: buildArticled(WORD_BANKS.objects.adjectives, WORD_BANKS.objects.nouns, isObjectCompatible),
-  things: buildArticled(WORD_BANKS.things.adjectives, WORD_BANKS.things.nouns, isThingCompatible),
-  scenes: buildArticled(WORD_BANKS.scenes.modifiers, WORD_BANKS.scenes.locations, isSceneCompatible)
-};
+// Builds both prompt pools (the compatibility-checked "safe" one and the
+// unfiltered "wild" one) for a given set of selected theme ids. Called once
+// at load with no themes (everything included), and again any time the
+// theme selection changes in Settings.
+function buildPromptData(selectedThemes) {
+  const thingsNouns = filterByTheme(WORD_BANKS.things.nouns, THINGS_NOUN_THEMES, selectedThemes);
+  const sceneLocations = filterByTheme(WORD_BANKS.scenes.locations, SCENE_LOCATION_THEMES, selectedThemes);
+  const objectNouns = filterByTheme(WORD_BANKS.objects.nouns, OBJECT_NOUN_THEMES, selectedThemes);
+  const scenarioSubjects = filterByTheme(WORD_BANKS.scenarios.subjects, SCENARIO_SUBJECT_THEMES, selectedThemes);
 
-// The full, unfiltered cross product — includes every pair the compatibility
-// rules would normally drop ("a velvet anchor", "a tropical glacier"). The
-// "weirdness" slider in Settings controls how often the app pulls from this
-// pool instead of the safe one, for people who want surprising or absurd
-// combinations on purpose. Words has no filter to begin with, so its two
-// pools are identical.
-const PROMPT_DATA_ALL = {
-  words: PROMPT_DATA_SAFE.words,
-  scenarios: buildScenarios(WORD_BANKS.scenarios.actions, WORD_BANKS.scenarios.subjects),
-  objects: buildArticled(WORD_BANKS.objects.adjectives, WORD_BANKS.objects.nouns),
-  things: buildArticled(WORD_BANKS.things.adjectives, WORD_BANKS.things.nouns),
-  scenes: buildArticled(WORD_BANKS.scenes.modifiers, WORD_BANKS.scenes.locations)
-};
+  const words = buildWordPhrases(WORD_BANKS.words.qualifiers, WORD_BANKS.words.concepts);
+
+  // The "safe" pool — every pair has passed the compatibility checks above.
+  // This is what the app draws from by default.
+  const safe = {
+    words,
+    scenarios: buildScenarios(WORD_BANKS.scenarios.actions, scenarioSubjects, isScenarioCompatible),
+    objects: buildArticled(WORD_BANKS.objects.adjectives, objectNouns, isObjectCompatible),
+    things: buildArticled(WORD_BANKS.things.adjectives, thingsNouns, isThingCompatible),
+    scenes: buildArticled(WORD_BANKS.scenes.modifiers, sceneLocations, isSceneCompatible)
+  };
+
+  // The full, unfiltered cross product — includes every pair the
+  // compatibility rules would normally drop ("a velvet anchor", "a tropical
+  // glacier"). The "weirdness" slider in Settings controls how often the
+  // app pulls from this pool instead of the safe one. Words has no filter
+  // to begin with, so its two pools are identical.
+  const all = {
+    words,
+    scenarios: buildScenarios(WORD_BANKS.scenarios.actions, scenarioSubjects),
+    objects: buildArticled(WORD_BANKS.objects.adjectives, objectNouns),
+    things: buildArticled(WORD_BANKS.things.adjectives, thingsNouns),
+    scenes: buildArticled(WORD_BANKS.scenes.modifiers, sceneLocations)
+  };
+
+  return { safe, all };
+}
 
 // Sentence templates used to weave categories together into one prompt.
 // Placeholders are filled from the matching PROMPT_DATA lists. `categories`

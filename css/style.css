@@ -579,8 +579,37 @@ body {
   font-size: 0.95rem;
 }
 
+.theme-section {
+  padding-top: 0.9rem;
+  margin-bottom: 1.2rem;
+  border-top: 1px solid var(--line);
+}
+
+.theme-label-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 0.7rem;
+}
+
+.theme-label {
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.theme-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.theme-chip {
+  padding: 0.35rem 0.8rem;
+  font-size: 0.8rem;
+}
+
 .weirdness-control {
-  padding-top: 0.2rem;
+  padding-top: 0.9rem;
   border-top: 1px solid var(--line);
 }
 

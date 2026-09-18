@@ -67,11 +67,12 @@
     });
   }
 
-  /* ---------- Settings (category toggles + weirdness) ---------- */
+  /* ---------- Settings (category toggles + content themes + weirdness) ---------- */
 
   const settings = Object.assign(
     {
       categories: { words: true, scenarios: true, objects: true, things: true, scenes: true },
+      themes: [],
       weirdness: 0
     },
     load(STORAGE_KEYS.settings, {})
@@ -80,6 +81,7 @@
     { words: true, scenarios: true, objects: true, things: true, scenes: true },
     settings.categories
   );
+  if (!Array.isArray(settings.themes)) settings.themes = [];
 
   function saveSettings() {
     save(STORAGE_KEYS.settings, settings);
@@ -93,15 +95,31 @@
     return Object.keys(CATEGORY_META).filter(isCategoryEnabled).length;
   }
 
+  function isThemeSelected(themeId) {
+    return settings.themes.includes(themeId);
+  }
+
   /* ---------- Shuffle bags — one "safe" pool, one "wild" (unfiltered) pool ---------- */
   // Each draw independently rolls against the weirdness setting to decide
   // which pool to pull from, so the mix of sensible vs. surprising results
   // matches the slider on average without needing to rebuild anything.
+  // The pools themselves (promptData) get rebuilt from scratch whenever the
+  // selected content themes change — see rebuildPromptData().
 
+  let promptData = buildPromptData(settings.themes);
   const bags = { safe: {}, all: {} };
 
   function poolFor(kind, category) {
-    return kind === "all" ? PROMPT_DATA_ALL[category] : PROMPT_DATA_SAFE[category];
+    return kind === "all" ? promptData.all[category] : promptData.safe[category];
+  }
+
+  function rebuildPromptData() {
+    promptData = buildPromptData(settings.themes);
+    bags.safe = {};
+    bags.all = {};
+    Object.keys(CATEGORY_META).forEach((category) => {
+      if (isCategoryEnabled(category)) generateSingle(category);
+    });
   }
 
   function refillBag(kind, category) {
@@ -732,6 +750,34 @@
     });
   }
 
+  function buildThemeToggles() {
+    const wrap = document.getElementById("theme-toggles");
+    THEMES.forEach((theme) => {
+      const label = document.createElement("label");
+      label.className = "toggle-chip theme-chip";
+      label.innerHTML = `
+        <input type="checkbox" id="theme-${theme.id}" />
+        <span>${theme.label}</span>
+      `;
+      wrap.appendChild(label);
+
+      const input = label.querySelector("input");
+      input.checked = isThemeSelected(theme.id);
+      label.classList.toggle("checked", input.checked);
+
+      input.addEventListener("change", (e) => {
+        if (e.target.checked) {
+          if (!settings.themes.includes(theme.id)) settings.themes.push(theme.id);
+        } else {
+          settings.themes = settings.themes.filter((t) => t !== theme.id);
+        }
+        label.classList.toggle("checked", e.target.checked);
+        saveSettings();
+        rebuildPromptData();
+      });
+    });
+  }
+
   function initWeirdnessSlider() {
     const slider = document.getElementById("weirdness-slider");
     const valueLabel = document.getElementById("weirdness-value");
@@ -772,6 +818,7 @@
       el.innerHTML = ICONS[el.dataset.icon] || "";
     });
     buildCategoryToggles();
+    buildThemeToggles();
     initWeirdnessSlider();
     buildCategoryCards();
     applyCategoryEnabledState();
