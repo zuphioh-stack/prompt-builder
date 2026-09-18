@@ -61,8 +61,19 @@ const WORD_BANKS = {
       "sun-worn", "moon-touched"
     ],
     nouns: [
-      "cat", "owl", "fox", "turtle", "raven", "hedgehog", "stag", "octopus", "jellyfish",
-      "chameleon", "dragon", "griffin", "mermaid", "centaur", "phoenix", "kraken",
+      // Animals (50) — curated for visual variety: textures, silhouettes,
+      // and anatomy that make for genuinely interesting sketch subjects.
+      "fox", "owl", "hedgehog", "octopus", "chameleon", "axolotl", "seahorse",
+      "peacock", "toucan", "flamingo", "pangolin", "platypus", "narwhal",
+      "elephant", "giraffe", "rhinoceros", "lion", "tiger", "gorilla",
+      "polar bear", "orca", "hippopotamus", "bison", "hermit crab",
+      "praying mantis", "dragonfly", "tortoise", "tree frog", "salamander",
+      "jellyfish", "hummingbird", "heron", "penguin", "ostrich", "raven",
+      "swan", "manta ray", "sea turtle", "starfish", "fiddler crab", "wolf",
+      "otter", "raccoon", "red panda", "sloth", "armadillo", "iguana",
+      "komodo dragon", "mantis shrimp", "cuttlefish",
+      // Fantasy creatures, mythical beings, and human characters
+      "dragon", "griffin", "mermaid", "centaur", "phoenix", "kraken",
       "unicorn", "gnome", "fairy", "golem", "werewolf", "sphinx", "minotaur",
       "will-o'-the-wisp", "yeti", "sailor", "street musician", "knight", "librarian",
       "fortune teller", "wizard", "masked vigilante", "lighthouse keeper", "merchant",
@@ -333,8 +344,15 @@ const THINGS_ANATOMICAL_ADJECTIVES = new Set([
 ]);
 
 const THINGS_CREATURE_NOUNS = new Set([
-  "cat", "owl", "fox", "turtle", "raven", "hedgehog", "stag", "octopus", "jellyfish",
-  "chameleon", "dragon", "griffin", "mermaid", "centaur", "phoenix", "kraken", "unicorn",
+  "fox", "owl", "hedgehog", "octopus", "chameleon", "axolotl", "seahorse", "peacock",
+  "toucan", "flamingo", "pangolin", "platypus", "narwhal", "elephant", "giraffe",
+  "rhinoceros", "lion", "tiger", "gorilla", "polar bear", "orca", "hippopotamus",
+  "bison", "hermit crab", "praying mantis", "dragonfly", "tortoise", "tree frog",
+  "salamander", "jellyfish", "hummingbird", "heron", "penguin", "ostrich", "raven",
+  "swan", "manta ray", "sea turtle", "starfish", "fiddler crab", "wolf", "otter",
+  "raccoon", "red panda", "sloth", "armadillo", "iguana", "komodo dragon",
+  "mantis shrimp", "cuttlefish",
+  "dragon", "griffin", "mermaid", "centaur", "phoenix", "kraken", "unicorn",
   "gnome", "fairy", "golem", "werewolf", "sphinx", "minotaur", "will-o'-the-wisp", "yeti",
   "giant", "talking crow", "clockwork spider", "river spirit"
 ]);
@@ -417,9 +435,23 @@ const THEMES = [
 ];
 
 const THINGS_NOUN_THEMES = {
-  "cat": ["animals"], "owl": ["animals"], "fox": ["animals"], "turtle": ["animals"],
-  "raven": ["animals"], "hedgehog": ["animals"], "stag": ["animals"], "octopus": ["animals"],
-  "jellyfish": ["animals"], "chameleon": ["animals"],
+  "fox": ["animals"], "owl": ["animals"], "hedgehog": ["animals"], "octopus": ["animals"],
+  "chameleon": ["animals"], "axolotl": ["animals"], "seahorse": ["animals"],
+  "peacock": ["animals"], "toucan": ["animals"], "flamingo": ["animals"],
+  "pangolin": ["animals"], "platypus": ["animals"], "narwhal": ["animals"],
+  "elephant": ["animals"], "giraffe": ["animals"], "rhinoceros": ["animals"],
+  "lion": ["animals"], "tiger": ["animals"], "gorilla": ["animals"],
+  "polar bear": ["animals"], "orca": ["animals"], "hippopotamus": ["animals"],
+  "bison": ["animals"], "hermit crab": ["animals"], "praying mantis": ["animals"],
+  "dragonfly": ["animals"], "tortoise": ["animals"], "tree frog": ["animals"],
+  "salamander": ["animals"], "jellyfish": ["animals"], "hummingbird": ["animals"],
+  "heron": ["animals"], "penguin": ["animals"], "ostrich": ["animals"],
+  "raven": ["animals"], "swan": ["animals"], "manta ray": ["animals"],
+  "sea turtle": ["animals"], "starfish": ["animals"], "fiddler crab": ["animals"],
+  "wolf": ["animals"], "otter": ["animals"], "raccoon": ["animals"],
+  "red panda": ["animals"], "sloth": ["animals"], "armadillo": ["animals"],
+  "iguana": ["animals"], "komodo dragon": ["animals"], "mantis shrimp": ["animals"],
+  "cuttlefish": ["animals"],
   "dragon": ["fantasy"], "griffin": ["fantasy"], "mermaid": ["fantasy"], "centaur": ["fantasy"],
   "phoenix": ["fantasy"], "kraken": ["fantasy"], "unicorn": ["fantasy"], "gnome": ["fantasy"],
   "fairy": ["fantasy"], "golem": ["fantasy"], "werewolf": ["fantasy"], "sphinx": ["fantasy"],
