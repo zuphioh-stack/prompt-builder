@@ -24,14 +24,15 @@ const WIDTH = 1200;
 const HEIGHT = 220;
 const COLUMNS = Math.floor(WIDTH / PIXEL);
 
-// Matches CATEGORY_META colors in js/app.js, plus the main accent.
+// A tonal black / beige / amber / cream palette — no pastels, matches the
+// app's single accent color system.
 const PALETTE = [
-  "#8b7ef0", // words (violet)
-  "#f0a339", // scenarios (orange)
-  "#31b3a0", // objects (teal)
-  "#ef5f81", // things (pink)
-  "#3d8bf0", // scenes (blue)
-  "#e08a5b" // accent (terracotta)
+  "#c99a44", // accent (amber)
+  "#e0b565", // accent-dark (light amber)
+  "#8f6a2e", // deep amber / bronze
+  "#f0e6d2", // cream (ink)
+  "#7c7261", // muted taupe (ink-faint)
+  "#332c22" // near-black (line)
 ];
 
 function pick(arr) {

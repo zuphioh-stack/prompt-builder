@@ -1,12 +1,14 @@
 (function () {
   "use strict";
 
+  // All categories share the same accent color (set in CSS) rather than
+  // each getting its own hue — one restrained palette instead of a rainbow.
   const CATEGORY_META = {
-    words: { label: "Word", icon: "categoryWord", color: "#8b7ef0", tint: "#efecfd" },
-    scenarios: { label: "Scenario", icon: "categoryScenario", color: "#f0a339", tint: "#fdf0dc" },
-    objects: { label: "Object", icon: "categoryObject", color: "#31b3a0", tint: "#dff6f1" },
-    things: { label: "Thing", icon: "categoryThing", color: "#ef5f81", tint: "#fce4ea" },
-    scenes: { label: "Scene", icon: "categoryScene", color: "#3d8bf0", tint: "#e2eefd" }
+    words: { label: "Word", icon: "categoryWord" },
+    scenarios: { label: "Scenario", icon: "categoryScenario" },
+    objects: { label: "Object", icon: "categoryObject" },
+    things: { label: "Thing", icon: "categoryThing" },
+    scenes: { label: "Scene", icon: "categoryScene" }
   };
 
   const STORAGE_KEYS = {
@@ -711,8 +713,6 @@
       const meta = CATEGORY_META[category];
       const label = document.createElement("label");
       label.className = "toggle-chip";
-      label.style.setProperty("--card-accent", meta.color);
-      label.style.setProperty("--card-tint", meta.tint);
       label.innerHTML = `
         <input type="checkbox" id="toggle-${category}" checked />
         <span class="toggle-chip-icon">${ICONS[meta.icon]}</span>
@@ -753,8 +753,6 @@
       const card = document.createElement("div");
       card.className = "card";
       card.id = `card-${category}`;
-      card.style.setProperty("--card-accent", meta.color);
-      card.style.setProperty("--card-tint", meta.tint);
       card.innerHTML = `
         <div class="card-header">
           <span class="card-icon">${ICONS[meta.icon]}</span>
