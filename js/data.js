@@ -197,11 +197,205 @@ function indefiniteArticle(word) {
   return /^[aeiou]/.test(lower) ? "an" : "a";
 }
 
+// ---------------------------------------------------------------------------
+// Compatibility system
+//
+// Cross-multiplying a modifier bank against a noun bank produces some pairs
+// that don't make physical or logical sense ("a velvet anchor", "a furry
+// librarian", "a tropical glacier", "training a curtain"). Rather than leave
+// that to chance, every generated pair is scored against a small set of
+// semantic rules below, and only compatible pairs are added to the live
+// prompt pool — incompatible ones are filtered out rather than shipped.
+// A pair is either compatible (kept) or not (dropped); there's no partial
+// credit, since a shuffle bag has no use for "maybe".
+// ---------------------------------------------------------------------------
+
+// --- Objects: material adjectives must suit the noun's real-world material ---
+
+const OBJECT_MATERIAL_ADJECTIVES = new Set([
+  "wooden", "iron", "brass", "copper", "crystal", "velvet", "silver", "golden",
+  "bronze", "marble", "ceramic", "rubber", "leather", "silk", "linen", "porcelain"
+]);
+
+// Every other object adjective (condition/size/age/style/magic/optical, e.g.
+// "rusty", "giant", "ancient", "glowing") is universal and fits any noun.
+// Material adjectives are pickier: a "velvet anchor" or "marble kettle"
+// doesn't track, so each noun below lists only the materials it could
+// plausibly be made of. An empty list means no material adjective applies —
+// the noun is organic (potted cactus), paper-based (scroll), or already
+// names its own material (wooden mask, knitted scarf).
+const OBJECT_NOUN_MATERIALS = {
+  "key": ["iron", "brass", "copper", "silver", "golden", "bronze"],
+  "umbrella": ["silk", "linen", "velvet"],
+  "book": ["leather", "linen", "velvet", "golden"],
+  "teapot": ["porcelain", "ceramic", "brass", "copper", "silver", "iron", "golden"],
+  "pocket watch": ["brass", "silver", "golden", "bronze", "copper"],
+  "pair of boots": ["leather", "rubber", "velvet"],
+  "birdcage": ["iron", "brass", "wooden", "copper", "golden"],
+  "lantern": ["iron", "brass", "copper", "crystal", "wooden", "golden"],
+  "violin": ["wooden"],
+  "chess piece": ["wooden", "marble", "crystal", "ceramic", "golden", "silver"],
+  "jar of buttons": ["ceramic", "crystal", "porcelain"],
+  "paper crane": [],
+  "mirror": ["crystal", "silver", "golden", "brass", "wooden", "iron"],
+  "treasure chest": ["wooden", "iron", "brass", "golden", "copper"],
+  "spool of thread": ["wooden"],
+  "magnifying glass": ["brass", "wooden", "silver", "golden", "iron"],
+  "skateboard": ["wooden", "rubber"],
+  "typewriter": ["iron", "brass"],
+  "potted cactus": [],
+  "fishing rod": ["wooden", "brass", "rubber"],
+  "compass": ["brass", "silver", "golden", "iron", "copper"],
+  "wooden mask": [],
+  "hourglass": ["wooden", "brass", "crystal", "golden"],
+  "camera": ["brass", "leather", "iron"],
+  "suitcase": ["leather", "linen", "velvet"],
+  "music box": ["wooden", "brass", "porcelain", "golden"],
+  "bicycle": ["iron", "brass", "rubber", "copper"],
+  "crown": ["golden", "silver", "bronze", "crystal"],
+  "bottle": ["crystal", "ceramic", "porcelain"],
+  "pair of glasses": ["golden", "silver", "brass", "rubber"],
+  "tarot card": [],
+  "robot toy": ["iron", "brass", "rubber", "copper"],
+  "sailboat model": ["wooden"],
+  "quiver of arrows": ["leather", "wooden"],
+  "satchel": ["leather", "linen", "velvet"],
+  "lute": ["wooden"],
+  "candle holder": ["brass", "iron", "silver", "golden", "crystal", "ceramic"],
+  "globe": ["wooden", "brass", "crystal"],
+  "anchor": ["iron", "copper", "bronze"],
+  "kite": ["silk", "linen", "wooden"],
+  "spinning top": ["wooden", "brass", "iron"],
+  "hand mirror": ["silver", "golden", "brass", "crystal", "wooden"],
+  "sundial": ["brass", "marble", "copper", "iron"],
+  "birdhouse": ["wooden"],
+  "wheelbarrow": ["wooden", "iron", "rubber"],
+  "ladder": ["wooden", "iron", "rubber"],
+  "fire hydrant": ["iron", "brass", "copper"],
+  "knitted scarf": [],
+  "bundle of letters": [],
+  "teacup": ["porcelain", "ceramic", "silver", "golden"],
+  "kettle": ["iron", "brass", "copper", "ceramic", "silver"],
+  "chandelier": ["crystal", "brass", "iron", "golden", "silver"],
+  "doorknob": ["brass", "iron", "golden", "silver", "crystal", "ceramic"],
+  "padlock": ["iron", "brass", "copper", "silver"],
+  "steamer trunk": ["wooden", "leather", "iron", "brass"],
+  "wooden drawer": [],
+  "vase": ["ceramic", "porcelain", "crystal", "golden", "silver", "marble"],
+  "urn": ["ceramic", "marble", "bronze", "golden", "silver"],
+  "goblet": ["silver", "golden", "bronze", "crystal", "ceramic"],
+  "chalice": ["golden", "silver", "bronze", "crystal"],
+  "dagger": ["iron", "silver", "bronze", "golden"],
+  "sword": ["iron", "silver", "bronze", "golden"],
+  "shield": ["iron", "wooden", "brass", "bronze"],
+  "helmet": ["iron", "brass", "bronze", "silver", "golden"],
+  "gauntlet": ["iron", "leather", "brass", "bronze"],
+  "quill": [],
+  "inkwell": ["ceramic", "crystal", "brass", "silver"],
+  "scroll": [],
+  "folded map": [],
+  "telescope": ["brass", "iron", "copper"],
+  "pair of binoculars": ["brass", "iron", "rubber"],
+  "lantern post": ["iron", "brass", "wooden", "copper"],
+  "weathervane": ["iron", "brass", "copper", "bronze", "golden"],
+  "gramophone": ["brass", "wooden"],
+  "record player": ["wooden", "rubber"],
+  "vintage radio": ["wooden", "brass", "rubber"],
+  "rotary phone": ["rubber", "iron", "ceramic"],
+  "sewing machine": ["iron", "brass", "wooden"],
+  "spinning wheel": ["wooden"],
+  "loom": ["wooden"],
+  "anvil": ["iron", "bronze"],
+  "hammer": ["wooden", "iron", "rubber"],
+  "wrench": ["iron", "brass", "copper", "rubber"],
+  "gear": ["iron", "brass", "copper", "bronze"],
+  "pulley": ["iron", "wooden", "brass"],
+  "pendulum": ["brass", "iron", "golden", "crystal"],
+  "clock face": ["brass", "iron", "wooden", "golden", "porcelain"],
+  "thermometer": ["brass", "wooden"],
+  "barometer": ["brass", "wooden", "copper"],
+  "sextant": ["brass", "iron", "copper"]
+};
+
+function isObjectCompatible(adjective, noun) {
+  if (!OBJECT_MATERIAL_ADJECTIVES.has(adjective)) return true;
+  const allowed = OBJECT_NOUN_MATERIALS[noun];
+  return Array.isArray(allowed) && allowed.includes(adjective);
+}
+
+// --- Things: anatomical adjectives only suit creatures, not human roles ---
+
+// "winged", "furry", etc. describe non-human anatomy — fine on a fox or a
+// dragon, nonsensical on a librarian or a blacksmith. Personality/history
+// adjectives ("grumpy", "legendary", "masked", "one-eyed") describe anyone.
+const THINGS_ANATOMICAL_ADJECTIVES = new Set([
+  "winged", "horned", "scaled", "furry", "feathered", "sharp-toothed", "three-legged"
+]);
+
+const THINGS_CREATURE_NOUNS = new Set([
+  "cat", "owl", "fox", "turtle", "raven", "hedgehog", "stag", "octopus", "jellyfish",
+  "chameleon", "dragon", "griffin", "mermaid", "centaur", "phoenix", "kraken", "unicorn",
+  "gnome", "fairy", "golem", "werewolf", "sphinx", "minotaur", "will-o'-the-wisp", "yeti",
+  "giant", "talking crow", "clockwork spider", "river spirit"
+]);
+
+function isThingCompatible(adjective, noun) {
+  if (!THINGS_ANATOMICAL_ADJECTIVES.has(adjective)) return true;
+  return THINGS_CREATURE_NOUNS.has(noun);
+}
+
+// --- Scenes: climate/water modifiers shouldn't contradict the location ---
+
+const SCENE_CLIMATE_HOT = new Set(["sun-scorched", "tropical", "arid", "sun-drenched"]);
+const SCENE_CLIMATE_COLD = new Set(["snow-covered", "frozen", "frost-bitten"]);
+const SCENE_CLIMATE_WET = new Set(["underwater", "half-submerged", "waterlogged"]);
+
+const SCENE_COLD_ONLY_LOCATIONS = new Set(["glacier", "frozen lake", "ice cave"]);
+const SCENE_ARID_ONLY_LOCATIONS = new Set(["desert oasis", "sand dune", "desert camp", "salt flat"]);
+
+function isSceneCompatible(modifier, location) {
+  if (SCENE_CLIMATE_HOT.has(modifier) && SCENE_COLD_ONLY_LOCATIONS.has(location)) return false;
+  if (SCENE_CLIMATE_COLD.has(modifier) && SCENE_ARID_ONLY_LOCATIONS.has(location)) return false;
+  if (SCENE_CLIMATE_WET.has(modifier) && SCENE_ARID_ONLY_LOCATIONS.has(location)) return false;
+  return true;
+}
+
+// --- Scenarios: some actions need a physical, or even a living, subject ---
+
+// "polishing", "folding", "carrying" etc. need something with a physical
+// form — "polishing a distant sound" doesn't parse. "training" specifically
+// needs something alive to train.
+const SCENARIO_TOUCH_ACTIONS = new Set([
+  "repairing", "mending", "folding", "unpacking", "wrapping", "unwrapping",
+  "carrying", "dragging", "pushing", "polishing", "sharpening", "assembling",
+  "dismantling", "lighting", "extinguishing", "weighing", "measuring",
+  "restoring", "digging up", "unearthing"
+]);
+
+const SCENARIO_ANIMATE_ONLY_ACTIONS = new Set(["training"]);
+
+const SCENARIO_ANIMATE_SUBJECTS = new Set(["a wild animal", "a strange creature", "a stranger"]);
+
+const SCENARIO_ABSTRACT_SUBJECTS = new Set([
+  "a distant sound", "old secrets", "something unusual", "a coming storm", "the dark",
+  "the stars", "a forgotten name", "a shadow", "a secret handshake", "a distant light",
+  "a fading star", "an old promise", "a long journey", "a reflection",
+  "a bus that never comes", "footprints in the snow", "an empty room",
+  "a garden at midnight", "a quiet corner", "an odd corner", "a narrow ledge", "a worn path"
+]);
+
+function isScenarioCompatible(action, subject) {
+  if (SCENARIO_ANIMATE_ONLY_ACTIONS.has(action)) return SCENARIO_ANIMATE_SUBJECTS.has(subject);
+  if (SCENARIO_TOUCH_ACTIONS.has(action)) return !SCENARIO_ABSTRACT_SUBJECTS.has(subject);
+  return true;
+}
+
 // "{a/an} {modifier} {noun}" — used for objects, things, and scenes.
-function buildArticled(modifiers, nouns) {
+function buildArticled(modifiers, nouns, isCompatible) {
   const list = [];
   modifiers.forEach((mod) => {
     nouns.forEach((noun) => {
+      if (isCompatible && !isCompatible(mod, noun)) return;
       list.push(`${indefiniteArticle(mod)} ${mod} ${noun}`);
     });
   });
@@ -209,10 +403,11 @@ function buildArticled(modifiers, nouns) {
 }
 
 // "{gerund phrase} {subject phrase}" — subjects already carry their own article.
-function buildScenarios(actions, subjects) {
+function buildScenarios(actions, subjects, isCompatible) {
   const list = [];
   actions.forEach((action) => {
     subjects.forEach((subject) => {
+      if (isCompatible && !isCompatible(action, subject)) return;
       list.push(`${action} ${subject}`);
     });
   });
@@ -220,6 +415,8 @@ function buildScenarios(actions, subjects) {
 }
 
 // "{qualifier} {concept}" — short mood/theme phrases, e.g. "quiet longing".
+// Abstract qualifier + abstract concept is essentially always a sensible
+// mood phrase, so this category has no compatibility filter.
 function buildWordPhrases(qualifiers, concepts) {
   const list = [];
   qualifiers.forEach((q) => {
@@ -232,10 +429,10 @@ function buildWordPhrases(qualifiers, concepts) {
 
 const PROMPT_DATA = {
   words: buildWordPhrases(WORD_BANKS.words.qualifiers, WORD_BANKS.words.concepts),
-  scenarios: buildScenarios(WORD_BANKS.scenarios.actions, WORD_BANKS.scenarios.subjects),
-  objects: buildArticled(WORD_BANKS.objects.adjectives, WORD_BANKS.objects.nouns),
-  things: buildArticled(WORD_BANKS.things.adjectives, WORD_BANKS.things.nouns),
-  scenes: buildArticled(WORD_BANKS.scenes.modifiers, WORD_BANKS.scenes.locations)
+  scenarios: buildScenarios(WORD_BANKS.scenarios.actions, WORD_BANKS.scenarios.subjects, isScenarioCompatible),
+  objects: buildArticled(WORD_BANKS.objects.adjectives, WORD_BANKS.objects.nouns, isObjectCompatible),
+  things: buildArticled(WORD_BANKS.things.adjectives, WORD_BANKS.things.nouns, isThingCompatible),
+  scenes: buildArticled(WORD_BANKS.scenes.modifiers, WORD_BANKS.scenes.locations, isSceneCompatible)
 };
 
 // Sentence templates used to weave categories together into one prompt.
