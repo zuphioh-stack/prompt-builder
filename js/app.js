@@ -75,7 +75,8 @@
     {
       categories: { words: true, scenarios: true, objects: true, things: true, scenes: true },
       themes: [],
-      weirdness: 0
+      weirdness: 0,
+      focalSubject: false
     },
     load(STORAGE_KEYS.settings, {})
   );
@@ -84,6 +85,7 @@
     settings.categories
   );
   if (!Array.isArray(settings.themes)) settings.themes = [];
+  settings.focalSubject = Boolean(settings.focalSubject);
 
   function saveSettings() {
     save(STORAGE_KEYS.settings, settings);
@@ -101,45 +103,25 @@
     return settings.themes.includes(themeId);
   }
 
-  /* ---------- Shuffle bags — one "safe" pool, one "wild" (unfiltered) pool ---------- */
+  /* ---------- Generation engine ---------- */
+  // The actual shuffle-bag/coherence-biasing algorithm lives in
+  // js/generator.js (PromptGenerator) so it has no DOM dependency and can be
+  // exercised directly by scripts/simulate.js. This app just owns the
+  // promptData (which themes are selected) and the live weirdness value.
 
   let promptData = buildPromptData(settings.themes);
-  const bags = { safe: {}, all: {} };
+  let generator = PromptGenerator.createGenerator(promptData, () => settings.weirdness);
 
-  function poolFor(kind, category) {
-    return kind === "all" ? promptData.all[category] : promptData.safe[category];
+  function draw(category, exclude) {
+    return generator.draw(category, exclude);
   }
 
   function rebuildPromptData() {
     promptData = buildPromptData(settings.themes);
-    bags.safe = {};
-    bags.all = {};
+    generator = PromptGenerator.createGenerator(promptData, () => settings.weirdness);
     Object.keys(CATEGORY_META).forEach((category) => {
       if (isCategoryEnabled(category)) generateSingle(category);
     });
-  }
-
-  function refillBag(kind, category) {
-    const items = poolFor(kind, category).slice();
-    for (let i = items.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [items[i], items[j]] = [items[j], items[i]];
-    }
-    bags[kind][category] = items;
-  }
-
-  function draw(category, exclude) {
-    const kind = Math.random() * 100 < settings.weirdness ? "all" : "safe";
-    if (!bags[kind][category] || bags[kind][category].length === 0) {
-      refillBag(kind, category);
-    }
-    let value = bags[kind][category].pop();
-    if (exclude && value === exclude && bags[kind][category].length > 0) {
-      const next = bags[kind][category].pop();
-      bags[kind][category].unshift(value);
-      value = next;
-    }
-    return value;
   }
 
   /* ---------- Current single-card values ---------- */
@@ -191,6 +173,7 @@
         toggle.closest(".toggle-chip").classList.toggle("checked", enabled);
       }
     });
+    updateFocalToggleAvailability();
     refreshFullPromptAvailability();
   }
 
@@ -200,8 +183,21 @@
     return PROMPT_TEMPLATES.filter((tpl) => tpl.categories.every(isCategoryEnabled));
   }
 
+  // "Focus on the animal/character" restricts the composer to templates
+  // where the thing/creature is the grammatical subject (see `focal: "thing"`
+  // in PROMPT_TEMPLATES) instead of one ingredient among several. It only
+  // does anything useful when Things is actually enabled, so the checkbox
+  // in Settings is disabled otherwise rather than silently doing nothing.
+  function isFocalSubjectActive() {
+    return settings.focalSubject && isCategoryEnabled("things");
+  }
+
   function templatesToUse() {
     const eligible = eligibleTemplates();
+    if (isFocalSubjectActive()) {
+      const focal = eligible.filter((tpl) => tpl.focal === "thing");
+      if (focal.length > 0) return focal;
+    }
     const rich = eligible.filter((tpl) => tpl.categories.length > 1);
     return rich.length > 0 ? rich : eligible;
   }
@@ -213,26 +209,23 @@
     document.getElementById("full-prompt-empty-message").style.display = hasTemplates ? "none" : "";
   }
 
-  function fillTemplate(templateText) {
-    const thing = draw("things");
-    const thing2 = draw("things", thing);
-    const scenario = draw("scenarios");
-    const object = draw("objects");
-    const scene = draw("scenes");
-    const word = draw("words");
-
-    return templateText
-      .replace(/{thing_cap}/g, capitalize(thing))
-      .replace(/{thing2}/g, thing2)
-      .replace(/{thing}/g, thing)
-      .replace(/{scenario}/g, scenario)
-      .replace(/{object_cap}/g, capitalize(object))
-      .replace(/{object}/g, object)
-      .replace(/{scene}/g, scene)
-      .replace(/{word}/g, word);
-  }
-
   const GENERATE_SPIN_MS = 480;
+
+  // Avoids picking the exact same sentence template twice in a row — with
+  // uniform random choice alone, a run of "New prompt" clicks can otherwise
+  // land on the same structure back to back, which reads as repetitive even
+  // though the words themselves differ.
+  let lastTemplateText = null;
+
+  function pickTemplate(templates) {
+    if (templates.length === 1) return templates[0];
+    let template = templates[Math.floor(Math.random() * templates.length)];
+    if (template.text === lastTemplateText) {
+      template = templates[Math.floor(Math.random() * templates.length)];
+    }
+    lastTemplateText = template.text;
+    return template;
+  }
 
   function generateFullPrompt() {
     const templates = templatesToUse();
@@ -240,8 +233,8 @@
       refreshFullPromptAvailability();
       return;
     }
-    const template = templates[Math.floor(Math.random() * templates.length)];
-    const text = fillTemplate(template.text);
+    const template = pickTemplate(templates);
+    const text = generator.fillTemplate(template.text);
     const textEl = document.getElementById("full-prompt-text");
     const generateBtn = document.getElementById("generate-prompt-btn");
     const iconEl = generateBtn.querySelector(".btn-icon");
@@ -980,6 +973,31 @@
     });
   }
 
+  // Only meaningful while Things is enabled — otherwise there's no
+  // animal/character for the composer to focus on, so the checkbox is
+  // disabled (not hidden, so it's clear why) rather than silently ignored.
+  function updateFocalToggleAvailability() {
+    const checkbox = document.getElementById("focal-subject-toggle");
+    const label = document.getElementById("focal-toggle-label");
+    const enabled = isCategoryEnabled("things");
+    checkbox.disabled = !enabled;
+    label.classList.toggle("disabled", !enabled);
+    label.title = enabled ? "" : "Enable the Thing category to use this";
+  }
+
+  function initFocalToggle() {
+    const checkbox = document.getElementById("focal-subject-toggle");
+    const label = document.getElementById("focal-toggle-label");
+    checkbox.checked = settings.focalSubject;
+    label.classList.toggle("checked", checkbox.checked);
+    checkbox.addEventListener("change", (e) => {
+      settings.focalSubject = e.target.checked;
+      label.classList.toggle("checked", e.target.checked);
+      saveSettings();
+    });
+    updateFocalToggleAvailability();
+  }
+
   /* ---------- Category cards ---------- */
 
   function buildCategoryCards() {
@@ -1017,6 +1035,7 @@
     buildCategoryToggles();
     buildThemeToggles();
     initWeirdnessSlider();
+    initFocalToggle();
     buildCategoryCards();
     applyCategoryEnabledState();
     initTabs();

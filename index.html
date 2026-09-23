@@ -59,6 +59,14 @@
         <div id="theme-toggles" class="theme-toggles"></div>
       </div>
 
+      <div class="focal-section">
+        <label class="toggle-chip focal-toggle" id="focal-toggle-label">
+          <input type="checkbox" id="focal-subject-toggle" />
+          <span>Focus on the animal/character</span>
+        </label>
+        <span class="settings-hint">Full prompt centers the scene around it, not just mentions it</span>
+      </div>
+
       <div class="weirdness-control">
         <div class="weirdness-label-row">
           <label for="weirdness-slider">Weirdness</label>
@@ -141,6 +149,7 @@
   <input id="practice-photo-input" type="file" accept="image/*" capture="environment" style="display:none" />
 
   <script src="js/data.js"></script>
+  <script src="js/generator.js"></script>
   <script src="js/icons.js"></script>
   <script src="js/supabase-config.js"></script>
   <script src="js/auth.js"></script>

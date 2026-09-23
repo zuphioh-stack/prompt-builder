@@ -16,8 +16,14 @@ not generate, call, or connect to any AI image generation service.
 - **Category toggles**, **content themes** (Animals, People, Landscapes,
   Fantasy, Imaginative, Realistic), and a **weirdness slider** to curate
   what gets generated.
-- **Full prompt** composer that weaves categories together into a sentence
-  using randomized templates.
+- **Full prompt** composer that weaves categories together into a sentence,
+  using a coherence bias (not pure chance) so the scene/object/scenario it
+  picks tends to share a "world" with whatever thing/creature it just
+  picked — see "How generation is curated" below.
+- **Focus on the animal/character** toggle — restricts the Full prompt
+  composer to sentence structures where the thing/creature is the
+  grammatical subject (a character/portrait study), rather than one
+  ingredient among several.
 - **Shared History, Favorites, and Practice log** — both of you see each
   other's generated prompts, favorites, and sketch entries (including
   attached photos), tagged with who made them. Each person can only edit or
@@ -72,12 +78,39 @@ python3 -m http.server 8000
 index.html              Markup, layout, login screen
 css/style.css            Styling (dark/light theme, login screen, shared UI)
 js/data.js               Word banks, theme tags, compatibility rules, sentence templates
+js/generator.js          Pure generation algorithm (shuffle bags + coherence bias) — no DOM
 js/icons.js              Shared inline-SVG icon set
 js/supabase-config.js    Project URL / anon key / bucket name — fill these in
 js/auth.js               Username-to-email mapping + Supabase Auth wrapper
-js/app.js                App logic: generation, UI, and the shared data layer
+js/app.js                App logic: UI wiring/rendering and the shared data layer
 supabase/schema.sql       Database tables, security rules, and storage bucket
+scripts/simulate.js       Node script that runs the generator millions of times to validate it
 ```
+
+## How generation is curated
+
+Rather than drawing every category completely independently (which tends to
+produce grab-bag combinations — a fantasy dragon in a subway platform holding
+a typewriter), the Full prompt composer in `js/generator.js`:
+
+1. Draws the thing/creature first.
+2. Looks up its theme tags (e.g. a griffin is tagged "fantasy"; a fox is
+   tagged "animals") and expands them to related themes via
+   `THEME_AFFINITY` in `js/data.js` (fantasy affines with imaginative,
+   animals affines with landscapes/realistic, and so on).
+3. When drawing the scenario, object, and scene, retries a few plain draws
+   looking for one that shares an affinity with the thing's themes,
+   preferring a theme-neutral pick (fits anywhere by design) over a
+   tagged-but-mismatched one if no direct match turns up.
+
+It's a soft bias, not a hard filter — the weirdness slider's "wild" pool
+bypasses it entirely, and even the "safe" pool can still land on a mismatch
+if nothing better is on offer, so surprise stays possible. Run
+`node scripts/simulate.js` to see this validated at scale: it loads the
+actual shipped algorithm (not a reimplementation) and runs several million
+generations, reporting pool sizes, the coherence improvement over
+independent random draws, grammar (a/an) correctness across the whole
+vocabulary, and the back-to-back template-repeat rate.
 
 ## Customizing the word banks
 
@@ -88,7 +121,10 @@ lists — add, remove, or edit entries freely. Theme tags
 rules live in the same file. Sentence templates for the combined "Full
 prompt" feature live in `PROMPT_TEMPLATES`, using `{word}`, `{scenario}`,
 `{object}` / `{object_cap}`, `{thing}` / `{thing_cap}` / `{thing2}`, and
-`{scene}` placeholders.
+`{scene}` placeholders. Add `focal: "thing"` to a template if the
+thing/creature is its grammatical subject — that's what "Focus on the
+animal/character" filters to. After editing word banks or templates, run
+`node scripts/simulate.js` to re-validate pool sizes and grammar at scale.
 
 ## Security notes
 

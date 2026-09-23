@@ -556,6 +556,31 @@ const SCENARIO_SUBJECT_THEMES = {
   "a rusty gate": ["realistic"], "a heavy trunk": ["realistic"], "an old cart": ["realistic"]
 };
 
+// Cross-category theme affinity — used to make the Full Prompt composer
+// pick a scene/object/scenario that plausibly belongs to the same "world"
+// as the thing/creature it just picked, instead of combining categories
+// completely independently. Each category uses its own theme vocabulary
+// (scenes are never tagged "animals", for instance), so this maps a theme
+// to the *set* of themes that read as compatible with it elsewhere, rather
+// than requiring an exact tag match.
+const THEME_AFFINITY = {
+  animals: ["animals", "landscapes", "realistic"],
+  people: ["people", "realistic", "imaginative"],
+  landscapes: ["landscapes", "realistic", "animals"],
+  fantasy: ["fantasy", "imaginative"],
+  imaginative: ["imaginative", "fantasy", "people"],
+  realistic: ["realistic", "landscapes", "people"]
+};
+
+function expandAffinity(tags) {
+  const out = new Set();
+  (tags || []).forEach((t) => {
+    out.add(t);
+    (THEME_AFFINITY[t] || []).forEach((t2) => out.add(t2));
+  });
+  return Array.from(out);
+}
+
 // A pair passes if the filter is off (nothing selected), the entry is
 // neutral (untagged), or it carries at least one of the selected themes.
 function themeMatches(tags, selectedThemes) {
@@ -612,6 +637,34 @@ function buildWordPhrases(qualifiers, concepts) {
   return list;
 }
 
+// Parallel to buildArticled/buildScenarios: instead of the phrase text,
+// records which theme tags each generated phrase carries (via its noun/
+// subject), so the generator can bias later category picks toward whatever
+// "world" the first pick (usually the thing/creature) belongs to.
+function buildTagIndex(modifiers, nouns, tagMap, isCompatible) {
+  const index = {};
+  modifiers.forEach((mod) => {
+    nouns.forEach((noun) => {
+      if (isCompatible && !isCompatible(mod, noun)) return;
+      const phrase = `${indefiniteArticle(mod)} ${mod} ${noun}`;
+      index[phrase] = tagMap[noun] || [];
+    });
+  });
+  return index;
+}
+
+function buildScenarioTagIndex(actions, subjects, tagMap, isCompatible) {
+  const index = {};
+  actions.forEach((action) => {
+    subjects.forEach((subject) => {
+      if (isCompatible && !isCompatible(action, subject)) return;
+      const phrase = `${action} ${subject}`;
+      index[phrase] = tagMap[subject] || [];
+    });
+  });
+  return index;
+}
+
 // Builds both prompt pools (the compatibility-checked "safe" one and the
 // unfiltered "wild" one) for a given set of selected theme ids. Called once
 // at load with no themes (everything included), and again any time the
@@ -647,30 +700,53 @@ function buildPromptData(selectedThemes) {
     scenes: buildArticled(WORD_BANKS.scenes.modifiers, sceneLocations)
   };
 
-  return { safe, all };
+  // Maps each "safe" phrase back to the theme tag(s) of the noun/subject it
+  // was built from, so the generator can bias later picks toward whatever
+  // world the first pick belongs to (see THEME_AFFINITY / expandAffinity
+  // above and PromptGenerator.fillTemplate). The "wild" pool skips this on
+  // purpose — the weirdness slider is meant to bypass coherence, not honor it.
+  const tagIndex = {
+    things: buildTagIndex(WORD_BANKS.things.adjectives, thingsNouns, THINGS_NOUN_THEMES, isThingCompatible),
+    scenes: buildTagIndex(WORD_BANKS.scenes.modifiers, sceneLocations, SCENE_LOCATION_THEMES, isSceneCompatible),
+    objects: buildTagIndex(WORD_BANKS.objects.adjectives, objectNouns, OBJECT_NOUN_THEMES, isObjectCompatible),
+    scenarios: buildScenarioTagIndex(WORD_BANKS.scenarios.actions, scenarioSubjects, SCENARIO_SUBJECT_THEMES, isScenarioCompatible)
+  };
+
+  return { safe, all, tagIndex };
 }
 
 // Sentence templates used to weave categories together into one prompt.
 // Placeholders are filled from the matching PROMPT_DATA lists. `categories`
 // lists which categories must be enabled (in Settings) for this template to
 // be eligible, so the composer never has to read the sentence text to figure
-// that out.
+// that out. `focal: "thing"` marks templates where the thing/creature is the
+// grammatical subject — the ones used when "Focus on the animal/character"
+// is switched on, so the composed sentence is a study of that subject rather
+// than an assortment of categories that happens to include one.
 const PROMPT_TEMPLATES = [
-  { text: "{thing_cap} {scenario} in {scene}.", categories: ["things", "scenarios", "scenes"] },
-  { text: "{thing_cap} in {scene}, surrounded by {object}.", categories: ["things", "scenes", "objects"] },
+  { text: "{thing_cap} {scenario} in {scene}.", categories: ["things", "scenarios", "scenes"], focal: "thing" },
+  { text: "{thing_cap} in {scene}, surrounded by {object}.", categories: ["things", "scenes", "objects"], focal: "thing" },
   { text: "Draw {object}, as if it belongs to {thing}, with a feeling of {word}.", categories: ["objects", "things", "words"] },
-  { text: "A scene of {word}: {thing} {scenario}.", categories: ["words", "things", "scenarios"] },
+  { text: "A scene of {word}: {thing} {scenario}.", categories: ["words", "things", "scenarios"], focal: "thing" },
   { text: "{object_cap}, abandoned in {scene}.", categories: ["objects", "scenes"] },
-  { text: "{thing_cap} {scenario}, clutching {object}.", categories: ["things", "scenarios", "objects"] },
-  { text: "In {scene}, {thing} is {scenario}.", categories: ["scenes", "things", "scenarios"] },
-  { text: "{thing_cap} and {thing2} {scenario} in {scene}.", categories: ["things", "scenarios", "scenes"] },
+  { text: "{thing_cap} {scenario}, clutching {object}.", categories: ["things", "scenarios", "objects"], focal: "thing" },
+  { text: "In {scene}, {thing} is {scenario}.", categories: ["scenes", "things", "scenarios"], focal: "thing" },
+  { text: "{thing_cap} and {thing2} {scenario} in {scene}.", categories: ["things", "scenarios", "scenes"], focal: "thing" },
   { text: "{object_cap} sits in {scene}, radiating {word}.", categories: ["objects", "scenes", "words"] },
-  { text: "A moment of {word}: {thing} {scenario} near {object}.", categories: ["words", "things", "scenarios", "objects"] },
+  { text: "A moment of {word}: {thing} {scenario} near {object}.", categories: ["words", "things", "scenarios", "objects"], focal: "thing" },
+  // Portrait/study-style templates — added specifically for "Focus on the
+  // animal/character" mode, framing the thing as the clear subject of a
+  // study rather than one ingredient among several.
+  { text: "A character study of {thing}, {scenario}.", categories: ["things", "scenarios"], focal: "thing" },
+  { text: "A portrait of {thing}, {scenario}.", categories: ["things", "scenarios"], focal: "thing" },
+  { text: "{thing_cap} takes center stage, {scenario} in {scene}.", categories: ["things", "scenarios", "scenes"], focal: "thing" },
+  { text: "Focus on {thing}: {scenario}, holding {object}.", categories: ["things", "scenarios", "objects"], focal: "thing" },
+  { text: "{thing_cap} alone in {scene}, a feeling of {word} in the air.", categories: ["things", "scenes", "words"], focal: "thing" },
   // Single-category fallbacks, so the composer still works when only one
   // or two categories are enabled in Settings.
   { text: "Draw {word}.", categories: ["words"] },
   { text: "Draw {scenario}.", categories: ["scenarios"] },
   { text: "Draw {object}.", categories: ["objects"] },
-  { text: "Draw {thing}.", categories: ["things"] },
+  { text: "Draw {thing}.", categories: ["things"], focal: "thing" },
   { text: "Draw {scene}.", categories: ["scenes"] }
 ];
