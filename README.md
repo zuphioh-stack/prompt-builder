@@ -45,10 +45,11 @@ whole app.
   (`js/animal-breeds.js`). Combine it with "Focus on the animal/character"
   to make that specific animal the sentence's subject, not just present in
   it.
-- **Color palette** panel — an independent, optional tool with 51 curated
-  color palettes (real named palettes and open-source theme specs, not
-  generated hexes) spanning warm, cool, pastel, vibrant, muted, monochrome,
-  dark, complementary, nature, retro, and painter's-limited-palette moods.
+- **Color palette** panel — an independent, optional tool with 97 curated
+  color palettes (real named palettes, open-source editor/theme specs, and
+  documented film/art palettes — not generated hexes) spanning warm, cool,
+  pastel, vibrant, muted, monochrome, dark, complementary, nature, retro,
+  and painter's-limited-palette moods.
   Shuffle for a random one or browse and filter the full set. See
   `js/palettes.js`.
 - **Shared History, Favorites, and Practice log** — both of you see each
@@ -107,7 +108,7 @@ css/style.css            Styling (dark/light theme, login screen, shared UI)
 js/data.js               Word banks, theme tags, compatibility rules, sentence templates
 js/generator.js          Pure generation algorithm (shuffle bags + coherence bias) — no DOM
 js/animal-breeds.js      Cat/dog breed + wild species lists for "Guarantee an animal"
-js/palettes.js           Curated color palette data (51 palettes, tagged by mood)
+js/palettes.js           Curated color palette data (97 palettes, tagged by mood)
 js/icons.js              Shared inline-SVG icon set
 js/supabase-config.js    Project URL / anon key / bucket name — fill these in
 js/auth.js               Username-to-email mapping + Supabase Auth wrapper
@@ -143,13 +144,18 @@ vocabulary, and the back-to-back template-repeat rate.
 
 ## Color palette data
 
-The 51 palettes in `js/palettes.js` are real, sourced combinations rather
+The 97 palettes in `js/palettes.js` are real, sourced combinations rather
 than generated hexes — named palettes from sites like ColorHunt/Coolors/
-SchemeColor/ColorKit, official open-source theme specs (Nord, Solarized,
-Dracula, Gruvbox, Flat UI), a few well-documented film/art palettes (Wes
-Anderson's `wesanderson` R package, a Van Gogh "Starry Night" extraction),
-and two classic limited painter's palettes (the Zorn palette, a split-primary
-triad) noted as digital approximations of physical pigments. Each entry has
+SchemeColor/ColorKit, official open-source editor/theme specs (Nord,
+Solarized, Dracula, Gruvbox, Flat UI, Catppuccin, Tokyo Night, Rosé Pine,
+Everforest, Monokai, One Dark, Ayu), well-documented film/design palettes
+(Wes Anderson's `wesanderson` R package covering several of his films,
+Blade Runner 2049's color grade, Bauhaus/Art Deco/Memphis/Synthwave design
+movements), art-history palettes digitized from pigment analysis (Van
+Gogh's *Starry Night*, Rembrandt's tenebrism, Vermeer's Dutch Golden Age,
+Ukiyo-e woodblock inks), and a handful of classic limited painter's
+palettes (the Zorn palette and an extended variant, a split-primary triad)
+noted as digital approximations of physical pigments. Each entry has
 `tags` (warm, cool, pastel, vibrant, muted, monochrome, dark, complementary,
 nature, retro, painterly) used by the browse grid's filter chips — add more
 by following the same `{ id, name, tags, hexes }` shape.
