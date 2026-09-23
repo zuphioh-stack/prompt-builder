@@ -8,6 +8,14 @@ own login.
 This is strictly an **idea generator for pencil-and-paper drawing**. It does
 not generate, call, or connect to any AI image generation service.
 
+The visual style is deliberately hand-drawn rather than a polished SaaS
+look: warm paper/chalkboard tones, a hand-lettered display font (Caveat)
+paired with a rounded body font (Nunito), organic wobbly-rounded corners
+instead of uniform ones, hard offset "sticker" shadows, a faint paper-grain
+texture, and bolder marker-style icon strokes. All of this lives in CSS
+variables and `js/icons.js`'s shared stroke width — see the `:root` blocks
+at the top of `css/style.css` to retheme it.
+
 ## Features
 
 - Five categories — **Word**, **Object**, **Thing**, **Scenario**, **Scene**
