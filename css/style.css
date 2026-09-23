@@ -3,46 +3,52 @@
    data-theme="light" on <html> (done by the theme toggle in app.js) swaps
    in the light palette below.
 
-   Both themes are built around a "hand-drawn sketchbook" feel rather than a
-   slick SaaS look: warm paper/chalkboard tones instead of neutral gray-black,
-   hard offset "sticker" shadows instead of soft blurred ones, and an organic
-   (not perfectly round) corner radius — see --shadow-* and --radius-organic,
-   which most components already reference via var(), so the whole app picks
-   up the look from these two blocks. */
+   Styled after a warm, modern hand-crafted generator tool (clean bold type,
+   big softly-rounded white cards on a warm cream dot-grid background, solid
+   pill buttons) rather than either a cold SaaS dashboard or an overtly
+   "hand-drawn" sketchbook look. Dark mode reworks the same structure into a
+   warm ember (red/orange/amber) palette instead of a neutral gray-black. */
 :root {
-  --paper: #241e19;
-  --surface: #2f2620;
-  --ink: #f1e6d3;
-  --ink-soft: #c9b99e;
-  --ink-faint: #8c7c64;
-  --accent: #e0975a;
-  --accent-dark: #f0b77e;
-  --accent-tint: #3a2e22;
-  --line: #453a2e;
-  --shadow-sm: 2px 2px 0 rgba(0, 0, 0, 0.22);
-  --shadow-md: 3px 3px 0 rgba(0, 0, 0, 0.28);
-  --shadow-lg: 5px 5px 0 rgba(0, 0, 0, 0.32);
+  --paper: #2a1810;
+  --surface: #3d2418;
+  --ink: #fbe8d3;
+  --ink-soft: #d9ae8f;
+  --ink-faint: #9c7860;
+  --accent: #e8804a;
+  --accent-dark: #f2a368;
+  --accent-tint: #4a2e1d;
+  --secondary-tint: #4a3020;
+  --line: #4a3020;
+  /* The primary button color: solid black-on-light in light mode (matching
+     the reference's "GENERATE PROMPT" button) wouldn't read in dark mode, so
+     dark mode uses the brightest accent instead — same "strongest color in
+     the room" role, different color per theme. */
+  --cta: var(--accent);
+  --cta-ink: var(--paper);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 10px 26px -14px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 22px 48px -22px rgba(0, 0, 0, 0.65);
   --radius-sm: 10px;
   --radius-md: 16px;
-  --radius-lg: 22px;
-  /* A hand-drawn wobbly rounded-rect, using four different corner radii
-     (the classic CSS "organic blob" trick) instead of one uniform value. */
-  --radius-organic: 255px 18px 220px 12px / 14px 220px 16px 250px;
+  --radius-lg: 28px;
 }
 
 :root[data-theme="light"] {
-  --paper: #f6efdd;
-  --surface: #fffbf3;
-  --ink: #2e2620;
-  --ink-soft: #6b5d4d;
-  --ink-faint: #a0937e;
-  --accent: #c9603d;
-  --accent-dark: #a44a2c;
-  --accent-tint: #f0dcc8;
-  --line: #e2d2b4;
-  --shadow-sm: 2px 2px 0 rgba(46, 38, 32, 0.14);
-  --shadow-md: 3px 3px 0 rgba(46, 38, 32, 0.16);
-  --shadow-lg: 5px 5px 0 rgba(46, 38, 32, 0.18);
+  --paper: #f7f0e1;
+  --surface: #ffffff;
+  --ink: #2e2117;
+  --ink-soft: #7a6552;
+  --ink-faint: #a8977e;
+  --accent: #dd6b3e;
+  --accent-dark: #b8532c;
+  --accent-tint: #f3e1ce;
+  --secondary-tint: #d7c9b8;
+  --line: #e5ddc9;
+  --cta: var(--ink);
+  --cta-ink: var(--surface);
+  --shadow-sm: 0 1px 2px rgba(46, 33, 23, 0.07);
+  --shadow-md: 0 8px 24px -12px rgba(46, 33, 23, 0.16);
+  --shadow-lg: 0 20px 45px -20px rgba(46, 33, 23, 0.24);
 }
 
 * {
@@ -57,11 +63,10 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.2s ease, color 0.2s ease;
-  /* A faint paper-grain texture (inline SVG fractal noise, no external
-     asset) sitting behind everything — purely decorative, never applied to
-     text, so it can't hurt legibility. */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
-  background-repeat: repeat;
+  /* A faint dot grid behind everything, derived from --ink so it stays
+     subtle and correctly-toned in both themes automatically. */
+  background-image: radial-gradient(color-mix(in srgb, var(--ink) 12%, transparent) 1px, transparent 1.5px);
+  background-size: 22px 22px;
 }
 
 /* ---------- Header ---------- */
@@ -161,8 +166,8 @@ body {
   width: 100%;
   max-width: 340px;
   background: var(--surface);
-  border: 2px solid var(--ink-faint);
-  border-radius: var(--radius-organic);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   padding: 2rem 1.75rem;
   display: flex;
@@ -178,9 +183,9 @@ body {
 .auth-card h2 {
   margin: 0;
   text-align: center;
-  font-family: "Fraunces", Georgia, serif;
-  font-size: 1.9rem;
-  font-weight: 700;
+  font-family: "Nunito", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 1.7rem;
+  font-weight: 900;
 }
 
 .auth-subtitle {
@@ -239,19 +244,16 @@ body {
   text-transform: uppercase;
   padding: 0.35rem 0.9rem;
   border-radius: 999px;
-  border: 2px solid var(--accent-dark);
-  transform: rotate(-1.5deg);
 }
 
 .site-header h1 {
-  font-family: "Fraunces", Georgia, serif;
-  font-weight: 700;
-  font-style: italic;
-  font-size: clamp(2.1rem, 5.5vw, 3.2rem);
+  font-family: "Nunito", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: 900;
+  font-size: clamp(2rem, 5vw, 3rem);
   line-height: 1.15;
   margin: 0;
   color: var(--ink);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 .tagline {
@@ -276,22 +278,10 @@ body {
 .panel {
   position: relative;
   background: var(--surface);
-  border: 2px solid var(--ink-faint);
-  border-radius: var(--radius-organic);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
   padding: 1.5rem 1.75rem 1.75rem;
   box-shadow: var(--shadow-md);
-}
-
-.panel::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  background: var(--accent);
-  opacity: 0.6;
 }
 
 .panel-heading {
@@ -303,9 +293,9 @@ body {
 }
 
 .panel-heading h2 {
-  font-family: "Fraunces", Georgia, serif;
-  font-weight: 700;
-  font-size: 1.45rem;
+  font-family: "Nunito", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: 900;
+  font-size: 1.3rem;
   margin: 0;
   color: var(--ink);
 }
@@ -321,28 +311,20 @@ body {
 .card {
   --card-accent: var(--accent);
   --card-tint: var(--accent-tint);
-  --tilt: 0deg;
   background: var(--surface);
-  border: 2px solid var(--ink-faint);
-  border-radius: var(--radius-organic);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
   padding: 1.1rem 1.1rem 1.2rem;
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
   min-height: 148px;
   box-shadow: var(--shadow-sm);
-  transform: rotate(var(--tilt));
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
-/* A slight alternating tilt per card — like they've been set down on a
-   sketchbook page rather than snapped to a grid. */
-.card:nth-child(3n+1) { --tilt: -0.6deg; }
-.card:nth-child(3n+2) { --tilt: 0.5deg; }
-.card:nth-child(3n+3) { --tilt: -0.3deg; }
-
 .card:hover {
-  transform: rotate(var(--tilt)) translateY(-3px);
+  transform: translateY(-3px);
   box-shadow: var(--shadow-md);
   border-color: color-mix(in srgb, var(--card-accent) 35%, var(--line));
 }
@@ -394,9 +376,9 @@ body {
 
 .card-value {
   flex: 1;
-  font-family: "Fraunces", Georgia, serif;
-  font-size: 1.2rem;
-  font-weight: 600;
+  font-family: "Nunito", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 800;
   line-height: 1.3;
   display: flex;
   align-items: center;
@@ -512,38 +494,37 @@ body {
 
 .full-prompt-card {
   position: relative;
-  background: linear-gradient(165deg, var(--accent-tint), var(--surface) 55%);
-  border: 2px solid var(--ink-faint);
-  border-radius: var(--radius-organic);
-  padding: 2.4rem 2rem 1.9rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 2.6rem 2rem 1.9rem;
   text-align: center;
-  overflow: hidden;
+  overflow: visible;
 }
 
-.full-prompt-card::before {
-  /* Centered at the top rather than tucked into a corner — the organic
-     border-radius corners aren't uniform, so a corner-anchored decoration
-     risked getting clipped by whichever corner happened to curve sharply. */
-  content: "“";
+/* A small tag overlapping the top-left corner, like a sticky note poking
+   out from behind the card — the same detail the reference generator uses
+   to label its result card. */
+.full-prompt-tag {
   position: absolute;
-  top: -0.6rem;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: "Nunito", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  font-size: 6rem;
-  color: var(--accent);
-  opacity: 0.18;
-  line-height: 1;
-  pointer-events: none;
+  top: -0.9rem;
+  left: 1.5rem;
+  background: var(--secondary-tint);
+  color: var(--ink);
+  font-weight: 800;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
 }
 
 #full-prompt-text {
-  font-family: "Fraunces", Georgia, serif;
-  font-weight: 600;
-  font-style: italic;
-  font-size: clamp(1.3rem, 2.6vw, 1.6rem);
+  font-family: "Nunito", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: 800;
+  font-size: clamp(1.3rem, 2.6vw, 1.65rem);
   margin: 0 0 1.4rem;
-  line-height: 1.45;
+  line-height: 1.4;
   color: var(--ink);
   position: relative;
   transition: opacity 0.14s ease, transform 0.14s ease;
@@ -587,19 +568,19 @@ body {
 }
 
 .btn-primary {
-  background: var(--accent);
-  color: var(--paper);
-  box-shadow: 0 10px 20px -10px rgba(201, 154, 68, 0.5);
+  background: var(--cta);
+  color: var(--cta-ink);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-primary:hover {
-  background: var(--accent-dark);
-  box-shadow: 0 14px 26px -10px rgba(201, 154, 68, 0.6);
+  opacity: 0.88;
+  box-shadow: var(--shadow-md);
 }
 
 .btn-secondary {
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--secondary-tint);
+  color: var(--ink);
 }
 
 .btn-secondary:hover {
@@ -797,24 +778,27 @@ body {
   gap: 0.4rem;
   padding: 0.45rem 0.9rem 0.45rem 0.6rem;
   border-radius: 999px;
-  border: 2px solid var(--ink-faint);
+  border: 1px solid var(--line);
   background: var(--surface);
+  color: var(--ink);
   font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
   user-select: none;
 }
 
+/* Solid pill when active — the same "CHOOSE A MODE" pattern the reference
+   uses for its mode-select buttons, rather than a tinted outline. */
 .toggle-chip.checked,
 .toggle-chip:has(input:checked) {
-  background: var(--card-tint);
-  border-color: var(--card-accent);
-  color: var(--card-accent);
+  background: var(--cta);
+  border-color: var(--cta);
+  color: var(--cta-ink);
 }
 
 .toggle-chip input {
-  accent-color: var(--card-accent);
+  accent-color: var(--cta-ink);
   width: 15px;
   height: 15px;
   margin: 0;
@@ -827,7 +811,7 @@ body {
 .theme-section {
   padding-top: 0.9rem;
   margin-bottom: 1.2rem;
-  border-top: 2px dashed var(--line);
+  border-top: 1px solid var(--line);
 }
 
 .theme-label-row {
@@ -859,7 +843,7 @@ body {
   gap: 0.6rem;
   padding-top: 0.9rem;
   margin-bottom: 1.2rem;
-  border-top: 2px dashed var(--line);
+  border-top: 1px solid var(--line);
 }
 
 .focal-row {
@@ -876,7 +860,7 @@ body {
 
 .weirdness-control {
   padding-top: 0.9rem;
-  border-top: 2px dashed var(--line);
+  border-top: 1px solid var(--line);
 }
 
 .weirdness-label-row {
@@ -947,9 +931,9 @@ body {
 }
 
 .stat-value {
-  font-family: "Fraunces", Georgia, serif;
-  font-size: 1.9rem;
-  font-weight: 700;
+  font-family: "Nunito", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 1.7rem;
+  font-weight: 900;
   color: var(--accent-dark);
 }
 
@@ -1105,39 +1089,37 @@ body {
   display: none;
 }
 
+/* Each color in its own rounded blob rather than one clipped bar — the same
+   "sage / petal / shell" oval-swatch look the reference uses to show off a
+   palette. */
 .palette-swatches {
   display: flex;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow-sm);
-  height: 4.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
 }
 
 .palette-swatch {
-  flex: 1;
   position: relative;
+  flex: 1 1 88px;
+  max-width: 150px;
+  height: 4.5rem;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
 }
 
-.palette-swatch:hover .palette-swatch-hex {
-  opacity: 1;
-}
-
 .palette-swatch-hex {
-  position: absolute;
-  left: 50%;
-  bottom: 0.35rem;
-  transform: translateX(-50%);
-  opacity: 0;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(0, 0, 0, 0.55);
   color: #fff;
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 0.15rem 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 0.25rem 0.55rem;
   border-radius: 999px;
   white-space: nowrap;
-  transition: opacity 0.12s ease;
   pointer-events: none;
 }
 
@@ -1163,7 +1145,7 @@ body {
 .palette-browser {
   margin-top: 1.2rem;
   padding-top: 1.1rem;
-  border-top: 2px dashed var(--line);
+  border-top: 1px solid var(--line);
 }
 
 .palette-browser[hidden] {

@@ -8,14 +8,16 @@ own login.
 This is strictly an **idea generator for pencil-and-paper drawing**. It does
 not generate, call, or connect to any AI image generation service.
 
-The visual style is deliberately hand-crafted rather than a polished SaaS
-look: warm paper/chalkboard tones, a bold retro-serif display font
-(Fraunces, italic for headlines) paired with a rounded body font (Nunito),
-organic wobbly-rounded corners instead of uniform ones, hard offset
-"sticker" shadows, a faint paper-grain texture, and bolder marker-style
-icon strokes. All of this lives in CSS variables and `js/icons.js`'s shared
-stroke width — see the `:root` blocks at the top of `css/style.css` to
-retheme it.
+The visual style is modeled after warm, hand-crafted generator tools (big
+softly-rounded white cards on a cream dot-grid background, a bold clean
+sans-serif, solid pill buttons, colorful oval palette swatches) rather than
+a cold SaaS dashboard: a warm cream/white/terracotta palette in light mode,
+and a warm ember (red/orange/amber — chosen to be easy on the eyes rather
+than neon) palette in dark mode, both built from Nunito at heavy weights.
+All of it lives in the `:root` / `:root[data-theme="light"]` variable
+blocks at the top of `css/style.css` (colors, shadows, radii) plus
+`js/icons.js`'s shared icon stroke width — change those to retheme the
+whole app.
 
 ## Features
 
