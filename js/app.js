@@ -76,7 +76,9 @@
       categories: { words: true, scenarios: true, objects: true, things: true, scenes: true },
       themes: [],
       weirdness: 0,
-      focalSubject: false
+      focalSubject: false,
+      sceneDetails: false,
+      palette: { enabled: false, id: null }
     },
     load(STORAGE_KEYS.settings, {})
   );
@@ -86,6 +88,10 @@
   );
   if (!Array.isArray(settings.themes)) settings.themes = [];
   settings.focalSubject = Boolean(settings.focalSubject);
+  settings.sceneDetails = Boolean(settings.sceneDetails);
+  if (!settings.palette || typeof settings.palette !== "object") settings.palette = { enabled: false, id: null };
+  settings.palette.enabled = Boolean(settings.palette.enabled);
+  if (typeof settings.palette.id !== "string") settings.palette.id = null;
 
   function saveSettings() {
     save(STORAGE_KEYS.settings, settings);
@@ -143,7 +149,11 @@
 
   function renderCard(category) {
     const valueEl = document.querySelector(`#card-${category} .card-value`);
-    valueEl.textContent = current[category] ? capitalize(current[category]) : "—";
+    let display = current[category];
+    if (display && category === "scenes") {
+      display = generator.maybeEmbellishScene(display, isSceneDetailsActive());
+    }
+    valueEl.textContent = display ? capitalize(display) : "—";
     replayAnimation(valueEl, "pop");
   }
 
@@ -173,7 +183,7 @@
         toggle.closest(".toggle-chip").classList.toggle("checked", enabled);
       }
     });
-    updateFocalToggleAvailability();
+    updateAllSettingsToggles();
     refreshFullPromptAvailability();
   }
 
@@ -192,6 +202,10 @@
     return settings.focalSubject && isCategoryEnabled("things");
   }
 
+  function isSceneDetailsActive() {
+    return settings.sceneDetails && isCategoryEnabled("scenes");
+  }
+
   function templatesToUse() {
     const eligible = eligibleTemplates();
     if (isFocalSubjectActive()) {
@@ -206,7 +220,7 @@
     const hasTemplates = eligibleTemplates().length > 0;
     document.getElementById("generate-prompt-btn").disabled = !hasTemplates;
     document.getElementById("full-prompt-text").style.display = hasTemplates ? "" : "none";
-    document.getElementById("full-prompt-empty-message").style.display = hasTemplates ? "none" : "";
+    document.getElementById("full-prompt-empty-message").style.display = hasTemplates ? "none" : "block";
   }
 
   const GENERATE_SPIN_MS = 480;
@@ -234,7 +248,7 @@
       return;
     }
     const template = pickTemplate(templates);
-    const text = generator.fillTemplate(template.text);
+    const text = generator.fillTemplate(template.text, { embellishScenes: isSceneDetailsActive() });
     const textEl = document.getElementById("full-prompt-text");
     const generateBtn = document.getElementById("generate-prompt-btn");
     const iconEl = generateBtn.querySelector(".btn-icon");
@@ -899,6 +913,137 @@
     });
   }
 
+  /* ---------- Color palette ---------- */
+  // A personal, local-only tool alongside the generator (not saved to
+  // history/favorites/Supabase) — pick a curated palette to sketch with,
+  // either at random or from the full browsable set. See js/palettes.js.
+
+  const PALETTE_TAGS = ["warm", "cool", "pastel", "vibrant", "muted", "monochrome", "dark", "complementary", "nature", "retro", "painterly"];
+  let activePaletteFilter = "all";
+
+  function findPalette(id) {
+    return COLOR_PALETTES.find((p) => p.id === id) || null;
+  }
+
+  function currentPalette() {
+    return findPalette(settings.palette.id);
+  }
+
+  function pickRandomPalette(excludeId) {
+    const pool = COLOR_PALETTES.length > 1 ? COLOR_PALETTES.filter((p) => p.id !== excludeId) : COLOR_PALETTES;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  function ensurePaletteSelected() {
+    if (!currentPalette()) settings.palette.id = pickRandomPalette(null).id;
+  }
+
+  function renderCurrentPalette() {
+    const palette = currentPalette();
+    const swatchesEl = document.getElementById("palette-swatches");
+    const nameEl = document.getElementById("palette-name");
+    if (!palette) {
+      swatchesEl.innerHTML = "";
+      nameEl.textContent = "—";
+      return;
+    }
+    swatchesEl.innerHTML = palette.hexes
+      .map((hex) => `<div class="palette-swatch" style="background:${hex}"><span class="palette-swatch-hex">${hex.toUpperCase()}</span></div>`)
+      .join("");
+    nameEl.textContent = palette.name;
+    replayAnimation(swatchesEl, "pop");
+  }
+
+  function updatePaletteVisibility() {
+    const active = settings.palette.enabled;
+    document.getElementById("palette-empty-message").style.display = active ? "none" : "block";
+    document.getElementById("palette-active").hidden = !active;
+  }
+
+  function buildPaletteFilters() {
+    const wrap = document.getElementById("palette-filters");
+    wrap.innerHTML = "";
+    ["all"].concat(PALETTE_TAGS).forEach((tag) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "palette-filter-chip" + (tag === activePaletteFilter ? " active" : "");
+      chip.textContent = tag;
+      chip.addEventListener("click", () => {
+        activePaletteFilter = tag;
+        wrap.querySelectorAll(".palette-filter-chip").forEach((c) => c.classList.remove("active"));
+        chip.classList.add("active");
+        buildPaletteBrowserGrid();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+
+  function buildPaletteBrowserGrid() {
+    const grid = document.getElementById("palette-browser-grid");
+    grid.innerHTML = "";
+    const list = activePaletteFilter === "all" ? COLOR_PALETTES : COLOR_PALETTES.filter((p) => p.tags.includes(activePaletteFilter));
+    list.forEach((palette) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "palette-browser-item" + (palette.id === settings.palette.id ? " active" : "");
+      item.innerHTML = `
+        <div class="palette-browser-swatches">${palette.hexes.map((hex) => `<span style="background:${hex}"></span>`).join("")}</div>
+        <div class="palette-browser-item-name">${palette.name}</div>
+      `;
+      item.addEventListener("click", () => {
+        settings.palette.id = palette.id;
+        saveSettings();
+        renderCurrentPalette();
+        grid.querySelectorAll(".palette-browser-item").forEach((el) => el.classList.remove("active"));
+        item.classList.add("active");
+      });
+      grid.appendChild(item);
+    });
+  }
+
+  function buildPaletteBrowser() {
+    const browser = document.getElementById("palette-browser");
+    browser.innerHTML = '<div class="palette-filters" id="palette-filters"></div><div class="palette-browser-grid" id="palette-browser-grid"></div>';
+    buildPaletteFilters();
+    buildPaletteBrowserGrid();
+  }
+
+  function initPaletteFeature() {
+    const toggle = document.getElementById("palette-toggle");
+    toggle.checked = settings.palette.enabled;
+    if (settings.palette.enabled) {
+      ensurePaletteSelected();
+      renderCurrentPalette();
+    }
+    updatePaletteVisibility();
+
+    toggle.addEventListener("change", (e) => {
+      settings.palette.enabled = e.target.checked;
+      if (settings.palette.enabled) {
+        ensurePaletteSelected();
+        renderCurrentPalette();
+      }
+      updatePaletteVisibility();
+      saveSettings();
+    });
+
+    document.getElementById("palette-shuffle-btn").addEventListener("click", (e) => {
+      replayAnimation(e.currentTarget.querySelector(".btn-icon"), "shuffle-spin");
+      settings.palette.id = pickRandomPalette(settings.palette.id).id;
+      renderCurrentPalette();
+      saveSettings();
+      const browser = document.getElementById("palette-browser");
+      if (!browser.hidden) buildPaletteBrowserGrid();
+    });
+
+    document.getElementById("palette-browse-btn").addEventListener("click", () => {
+      const browser = document.getElementById("palette-browser");
+      const wasHidden = browser.hidden;
+      browser.hidden = !wasHidden;
+      if (wasHidden) buildPaletteBrowser();
+    });
+  }
+
   /* ---------- Settings UI ---------- */
 
   function weirdnessDescription(value) {
@@ -974,28 +1119,41 @@
   }
 
   // Only meaningful while Things is enabled — otherwise there's no
-  // animal/character for the composer to focus on, so the checkbox is
-  // disabled (not hidden, so it's clear why) rather than silently ignored.
-  function updateFocalToggleAvailability() {
-    const checkbox = document.getElementById("focal-subject-toggle");
-    const label = document.getElementById("focal-toggle-label");
-    const enabled = isCategoryEnabled("things");
-    checkbox.disabled = !enabled;
-    label.classList.toggle("disabled", !enabled);
-    label.title = enabled ? "" : "Enable the Thing category to use this";
-  }
+  // Both of these settings toggles only do anything useful while a
+  // particular category is enabled (focal subject needs Things, scene
+  // detail needs Scenes) — this wires up one checkbox/label pair, disabling
+  // it (not hiding it, so it's clear why) whenever that category is off.
+  const settingsToggles = [];
 
-  function initFocalToggle() {
-    const checkbox = document.getElementById("focal-subject-toggle");
-    const label = document.getElementById("focal-toggle-label");
-    checkbox.checked = settings.focalSubject;
+  function initSettingsToggle(checkboxId, labelId, settingKey, requiredCategory) {
+    const checkbox = document.getElementById(checkboxId);
+    const label = document.getElementById(labelId);
+    checkbox.checked = settings[settingKey];
     label.classList.toggle("checked", checkbox.checked);
     checkbox.addEventListener("change", (e) => {
-      settings.focalSubject = e.target.checked;
+      settings[settingKey] = e.target.checked;
       label.classList.toggle("checked", e.target.checked);
       saveSettings();
     });
-    updateFocalToggleAvailability();
+    const entry = { checkbox, label, requiredCategory };
+    settingsToggles.push(entry);
+    updateSettingsToggleAvailability(entry);
+  }
+
+  function updateSettingsToggleAvailability(entry) {
+    const enabled = isCategoryEnabled(entry.requiredCategory);
+    entry.checkbox.disabled = !enabled;
+    entry.label.classList.toggle("disabled", !enabled);
+    entry.label.title = enabled ? "" : `Enable the ${CATEGORY_META[entry.requiredCategory].label} category to use this`;
+  }
+
+  function updateAllSettingsToggles() {
+    settingsToggles.forEach(updateSettingsToggleAvailability);
+  }
+
+  function initFocalToggle() {
+    initSettingsToggle("focal-subject-toggle", "focal-toggle-label", "focalSubject", "things");
+    initSettingsToggle("scene-details-toggle", "scene-details-toggle-label", "sceneDetails", "scenes");
   }
 
   /* ---------- Category cards ---------- */
@@ -1036,6 +1194,7 @@
     buildThemeToggles();
     initWeirdnessSlider();
     initFocalToggle();
+    initPaletteFeature();
     buildCategoryCards();
     applyCategoryEnabledState();
     initTabs();

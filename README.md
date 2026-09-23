@@ -24,6 +24,15 @@ not generate, call, or connect to any AI image generation service.
   composer to sentence structures where the thing/creature is the
   grammatical subject (a character/portrait study), rather than one
   ingredient among several.
+- **Add atmospheric detail to scenes** toggle — occasionally appends a small
+  curated atmospheric flourish to a scene ("...with dust motes drifting
+  through a shaft of light"), in both the Scene card and the Full prompt.
+- **Color palette** panel — an independent, optional tool with 51 curated
+  color palettes (real named palettes and open-source theme specs, not
+  generated hexes) spanning warm, cool, pastel, vibrant, muted, monochrome,
+  dark, complementary, nature, retro, and painter's-limited-palette moods.
+  Shuffle for a random one or browse and filter the full set. See
+  `js/palettes.js`.
 - **Shared History, Favorites, and Practice log** — both of you see each
   other's generated prompts, favorites, and sketch entries (including
   attached photos), tagged with who made them. Each person can only edit or
@@ -35,8 +44,8 @@ not generate, call, or connect to any AI image generation service.
 History, favorites, and the practice log (including sketch photos) are
 stored in a shared [Supabase](https://supabase.com) project rather than the
 browser, so both of you see the same data from any device. Everything else
-(color theme, enabled categories, content themes, weirdness) is a personal
-preference and stays local to each browser.
+(color theme, enabled categories, content themes, weirdness, the color
+palette panel) is a personal preference and stays local to each browser.
 
 Logging in uses a plain username and password — there's no email involved
 from your side. Under the hood, Supabase Auth only understands
@@ -79,6 +88,7 @@ index.html              Markup, layout, login screen
 css/style.css            Styling (dark/light theme, login screen, shared UI)
 js/data.js               Word banks, theme tags, compatibility rules, sentence templates
 js/generator.js          Pure generation algorithm (shuffle bags + coherence bias) — no DOM
+js/palettes.js           Curated color palette data (51 palettes, tagged by mood)
 js/icons.js              Shared inline-SVG icon set
 js/supabase-config.js    Project URL / anon key / bucket name — fill these in
 js/auth.js               Username-to-email mapping + Supabase Auth wrapper
@@ -111,6 +121,19 @@ actual shipped algorithm (not a reimplementation) and runs several million
 generations, reporting pool sizes, the coherence improvement over
 independent random draws, grammar (a/an) correctness across the whole
 vocabulary, and the back-to-back template-repeat rate.
+
+## Color palette data
+
+The 51 palettes in `js/palettes.js` are real, sourced combinations rather
+than generated hexes — named palettes from sites like ColorHunt/Coolors/
+SchemeColor/ColorKit, official open-source theme specs (Nord, Solarized,
+Dracula, Gruvbox, Flat UI), a few well-documented film/art palettes (Wes
+Anderson's `wesanderson` R package, a Van Gogh "Starry Night" extraction),
+and two classic limited painter's palettes (the Zorn palette, a split-primary
+triad) noted as digital approximations of physical pigments. Each entry has
+`tags` (warm, cool, pastel, vibrant, muted, monochrome, dark, complementary,
+nature, retro, painterly) used by the browse grid's filter chips — add more
+by following the same `{ id, name, tags, hexes }` shape.
 
 ## Customizing the word banks
 

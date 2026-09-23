@@ -60,11 +60,20 @@
       </div>
 
       <div class="focal-section">
-        <label class="toggle-chip focal-toggle" id="focal-toggle-label">
-          <input type="checkbox" id="focal-subject-toggle" />
-          <span>Focus on the animal/character</span>
-        </label>
-        <span class="settings-hint">Full prompt centers the scene around it, not just mentions it</span>
+        <div class="focal-row">
+          <label class="toggle-chip focal-toggle" id="focal-toggle-label">
+            <input type="checkbox" id="focal-subject-toggle" />
+            <span>Focus on the animal/character</span>
+          </label>
+          <span class="settings-hint">Full prompt centers the scene around it, not just mentions it</span>
+        </div>
+        <div class="focal-row">
+          <label class="toggle-chip focal-toggle" id="scene-details-toggle-label">
+            <input type="checkbox" id="scene-details-toggle" />
+            <span>Add atmospheric detail to scenes</span>
+          </label>
+          <span class="settings-hint">Occasionally adds a small extra detail, like fog or dust motes</span>
+        </div>
       </div>
 
       <div class="weirdness-control">
@@ -100,6 +109,30 @@
           <button id="full-prompt-copy" class="btn btn-ghost" type="button"><span class="btn-icon" data-icon="copy"></span>Copy</button>
           <button id="full-prompt-star" class="btn btn-ghost" type="button"><span class="btn-icon" data-icon="starOutline"></span>Favorite</button>
         </div>
+      </div>
+    </section>
+
+    <section class="panel" id="palette-panel">
+      <div class="panel-heading">
+        <h2>Color palette</h2>
+        <label class="toggle-chip" id="palette-toggle-label">
+          <input type="checkbox" id="palette-toggle" />
+          <span>Use a palette</span>
+        </label>
+      </div>
+
+      <p id="palette-empty-message" class="full-prompt-empty-message">Turn on "Use a palette" for a curated set of colors to sketch with.</p>
+
+      <div id="palette-active" class="palette-active">
+        <div class="palette-swatches" id="palette-swatches"></div>
+        <div class="palette-meta">
+          <span id="palette-name" class="palette-name">—</span>
+        </div>
+        <div class="palette-actions">
+          <button id="palette-shuffle-btn" class="btn btn-secondary" type="button"><span class="btn-icon" data-icon="shuffle"></span>Shuffle</button>
+          <button id="palette-browse-btn" class="btn btn-ghost" type="button">Browse all</button>
+        </div>
+        <div id="palette-browser" class="palette-browser" hidden></div>
       </div>
     </section>
 
@@ -149,6 +182,7 @@
   <input id="practice-photo-input" type="file" accept="image/*" capture="environment" style="display:none" />
 
   <script src="js/data.js"></script>
+  <script src="js/palettes.js"></script>
   <script src="js/generator.js"></script>
   <script src="js/icons.js"></script>
   <script src="js/supabase-config.js"></script>

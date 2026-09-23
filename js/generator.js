@@ -86,7 +86,27 @@
       return neutralFallback !== null ? neutralFallback : lastValue;
     }
 
-    function fillTemplate(templateText) {
+    // Optional atmospheric flourish appended after a scene phrase — see the
+    // "embellishments" list in WORD_BANKS.scenes and the "Add atmospheric
+    // detail to scenes" toggle in Settings. Rolled probabilistically rather
+    // than always-on so it reads as an occasional extra touch, not a fixed
+    // suffix on every scene.
+    const SCENE_EMBELLISH_CHANCE = 0.6;
+
+    function embellishScene(scenePhrase) {
+      const list = WORD_BANKS.scenes.embellishments || [];
+      if (list.length === 0) return scenePhrase;
+      const pick = list[Math.floor(Math.random() * list.length)];
+      return `${scenePhrase}, ${pick}`;
+    }
+
+    function maybeEmbellishScene(scenePhrase, enabled) {
+      if (!enabled || Math.random() > SCENE_EMBELLISH_CHANCE) return scenePhrase;
+      return embellishScene(scenePhrase);
+    }
+
+    function fillTemplate(templateText, options) {
+      const opts = options || {};
       const thing = draw("things");
       const thingTags = tagsFor("things", thing);
       const biasThemes = expandAffinity(thingTags);
@@ -94,7 +114,7 @@
       const thing2 = drawBiased("things", biasThemes, thing);
       const scenario = drawBiased("scenarios", biasThemes);
       const object = drawBiased("objects", biasThemes);
-      const scene = drawBiased("scenes", biasThemes);
+      const scene = maybeEmbellishScene(drawBiased("scenes", biasThemes), opts.embellishScenes);
       const word = draw("words");
 
       return templateText
@@ -108,7 +128,7 @@
         .replace(/{word}/g, word);
     }
 
-    return { draw, drawBiased, tagsFor, fillTemplate };
+    return { draw, drawBiased, tagsFor, fillTemplate, maybeEmbellishScene };
   }
 
   global.PromptGenerator = { createGenerator, capitalize };

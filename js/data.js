@@ -120,6 +120,54 @@ const WORD_BANKS = {
       "ice cave", "hedge maze", "botanical garden", "rooftop cafe", "train yard",
       "shipyard", "fishing village", "mountain hut", "desert camp", "riverbank",
       "canal street", "rooftop terrace", "courtyard garden", "stone bridge", "ferry dock"
+    ],
+    // Optional atmospheric flourishes ("Add atmospheric detail to scenes" in
+    // Settings) — appended after a scene phrase, not cross-multiplied into
+    // it. Deliberately kept generic (light, weather, small ambient detail)
+    // rather than location-specific ("gulls circling", "market vendors
+    // calling") so any one of them plausibly suits any scene above, the same
+    // way the theme-agnostic "words" category needs no compatibility filter.
+    embellishments: [
+      "with dust motes drifting through a shaft of light",
+      "as shadows stretch long across the ground",
+      "with a faint smell of rain in the air",
+      "scattered with fallen leaves",
+      "as a soft wind stirs everything loose",
+      "with flickering light from somewhere unseen",
+      "as a distant sound echoes faintly",
+      "with cobwebs catching the light",
+      "as dust settles slowly over everything",
+      "with a single small object left slightly out of place",
+      "as the light shifts toward gold",
+      "with faint footprints leading away",
+      "as everything holds unnervingly still",
+      "with a low hum in the background",
+      "scattered with small forgotten objects",
+      "as the temperature seems to drop",
+      "with condensation beading on every surface",
+      "as a clock ticks somewhere out of sight",
+      "with steam curling up from somewhere nearby",
+      "as the light flickers, then steadies",
+      "with a thin layer of dust over everything",
+      "as loose papers rustle in a draft",
+      "with a single candle burning low",
+      "as the last light fades to blue",
+      "with frost creeping across every surface",
+      "as puddles hold trembling reflections",
+      "with a stray beam of light cutting through the gloom",
+      "as smoke drifts lazily upward",
+      "with something small glinting just out of reach",
+      "as a chill settles into the corners",
+      "with the hush of a held breath",
+      "as dust hangs suspended in a sunbeam",
+      "with everything slightly overgrown at the edges",
+      "as a single sound breaks the silence",
+      "with the glow of something just out of frame",
+      "as the air feels charged, like before a storm",
+      "with faint music drifting from somewhere unseen",
+      "as the ground creaks underfoot",
+      "with a soft haze blurring the far edges",
+      "as everything seems to be waiting for something"
     ]
   },
 
