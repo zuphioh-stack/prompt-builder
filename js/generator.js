@@ -107,11 +107,18 @@
 
     function fillTemplate(templateText, options) {
       const opts = options || {};
-      const thing = draw("things");
+      const thing = opts.forceThing ? opts.forceThing() : draw("things");
       const thingTags = tagsFor("things", thing);
       const biasThemes = expandAffinity(thingTags);
 
-      const thing2 = drawBiased("things", biasThemes, thing);
+      let thing2;
+      if (opts.forceThing) {
+        thing2 = opts.forceThing();
+        if (thing2 === thing) thing2 = opts.forceThing();
+      } else {
+        thing2 = drawBiased("things", biasThemes, thing);
+      }
+
       const scenario = drawBiased("scenarios", biasThemes);
       const object = drawBiased("objects", biasThemes);
       const scene = maybeEmbellishScene(drawBiased("scenes", biasThemes), opts.embellishScenes);
@@ -131,5 +138,28 @@
     return { draw, drawBiased, tagsFor, fillTemplate, maybeEmbellishScene };
   }
 
-  global.PromptGenerator = { createGenerator, capitalize };
+  // A specific animal noun (a breed, or a wild species from js/animal-
+  // breeds.js) isn't part of any pool built by buildPromptData, so it needs
+  // its own adjective pairing rather than going through draw()/drawBiased().
+  // Anatomical adjectives ("winged", "scaled", "feathered", "horned",
+  // "three-legged") don't fit a real cat or dog, so they're excluded in the
+  // safe case the same way isThingCompatible excludes them for non-creature
+  // nouns — except "furry" and "sharp-toothed", which are true of virtually
+  // any cat/dog/wild relative and stay allowed. Weirdness still does
+  // something here: at higher settings it has a chance to ignore that
+  // exclusion for a stranger, less-literal result.
+  const ANIMAL_ALLOWED_ANATOMICAL = new Set(["furry", "sharp-toothed"]);
+
+  function phraseForFixedNoun(noun, weirdness) {
+    const wild = Math.random() * 100 < (weirdness || 0);
+    const adjectives = wild
+      ? WORD_BANKS.things.adjectives
+      : WORD_BANKS.things.adjectives.filter(
+          (adj) => !THINGS_ANATOMICAL_ADJECTIVES.has(adj) || ANIMAL_ALLOWED_ANATOMICAL.has(adj)
+        );
+    const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+    return `${indefiniteArticle(adj)} ${adj} ${noun}`;
+  }
+
+  global.PromptGenerator = { createGenerator, capitalize, phraseForFixedNoun };
 })(typeof window !== "undefined" ? window : globalThis);

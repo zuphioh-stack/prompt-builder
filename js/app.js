@@ -78,7 +78,8 @@
       weirdness: 0,
       focalSubject: false,
       sceneDetails: false,
-      palette: { enabled: false, id: null }
+      palette: { enabled: false, id: null },
+      animalMode: { enabled: false, species: "any", breed: "any" }
     },
     load(STORAGE_KEYS.settings, {})
   );
@@ -92,6 +93,12 @@
   if (!settings.palette || typeof settings.palette !== "object") settings.palette = { enabled: false, id: null };
   settings.palette.enabled = Boolean(settings.palette.enabled);
   if (typeof settings.palette.id !== "string") settings.palette.id = null;
+  if (!settings.animalMode || typeof settings.animalMode !== "object") {
+    settings.animalMode = { enabled: false, species: "any", breed: "any" };
+  }
+  settings.animalMode.enabled = Boolean(settings.animalMode.enabled);
+  if (!["any", "cat", "dog"].includes(settings.animalMode.species)) settings.animalMode.species = "any";
+  if (typeof settings.animalMode.breed !== "string") settings.animalMode.breed = "any";
 
   function saveSettings() {
     save(STORAGE_KEYS.settings, settings);
@@ -118,7 +125,48 @@
   let promptData = buildPromptData(settings.themes);
   let generator = PromptGenerator.createGenerator(promptData, () => settings.weirdness);
 
+  // "Guarantee an animal" (Settings) — only meaningful while Things is
+  // enabled, same pattern as focalSubject/sceneDetails above.
+  function isAnimalGuaranteeActive() {
+    return settings.animalMode.enabled && isCategoryEnabled("things");
+  }
+
+  // The general "any animal" pool reuses the same 50 curated animal nouns
+  // as the Animals theme (via the same filterByTheme/buildArticled data.js
+  // helpers the generator itself is built from), so it inherits the same
+  // adjective-compatibility rules for free. Built once and cached — the
+  // underlying word banks don't change at runtime.
+  let cachedAnyAnimalPools = null;
+  function anyAnimalPools() {
+    if (!cachedAnyAnimalPools) {
+      const nouns = filterByTheme(WORD_BANKS.things.nouns, THINGS_NOUN_THEMES, ["animals"]);
+      cachedAnyAnimalPools = {
+        safe: buildArticled(WORD_BANKS.things.adjectives, nouns, isThingCompatible),
+        all: buildArticled(WORD_BANKS.things.adjectives, nouns)
+      };
+    }
+    return cachedAnyAnimalPools;
+  }
+
+  function drawAnimalThing() {
+    const { species, breed } = settings.animalMode;
+    if (species === "cat" || species === "dog") {
+      const pool = ANIMAL_BREEDS[species].all;
+      const name = breed !== "any" && pool.includes(breed) ? breed : pool[Math.floor(Math.random() * pool.length)];
+      return PromptGenerator.phraseForFixedNoun(animalNounPhrase(species, name), settings.weirdness);
+    }
+    const pools = anyAnimalPools();
+    const kind = Math.random() * 100 < settings.weirdness ? "all" : "safe";
+    const list = pools[kind];
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
   function draw(category, exclude) {
+    if (category === "things" && isAnimalGuaranteeActive()) {
+      let value = drawAnimalThing();
+      if (exclude && value === exclude) value = drawAnimalThing();
+      return value;
+    }
     return generator.draw(category, exclude);
   }
 
@@ -208,12 +256,19 @@
 
   function templatesToUse() {
     const eligible = eligibleTemplates();
+    let pool = eligible;
     if (isFocalSubjectActive()) {
+      // Every focal:"thing" template already includes "things" in its
+      // categories, so this alone also satisfies the animal guarantee below
+      // — no need to check both.
       const focal = eligible.filter((tpl) => tpl.focal === "thing");
-      if (focal.length > 0) return focal;
+      if (focal.length > 0) pool = focal;
+    } else if (isAnimalGuaranteeActive()) {
+      const withThing = eligible.filter((tpl) => tpl.categories.includes("things"));
+      if (withThing.length > 0) pool = withThing;
     }
-    const rich = eligible.filter((tpl) => tpl.categories.length > 1);
-    return rich.length > 0 ? rich : eligible;
+    const rich = pool.filter((tpl) => tpl.categories.length > 1);
+    return rich.length > 0 ? rich : pool;
   }
 
   function refreshFullPromptAvailability() {
@@ -248,7 +303,10 @@
       return;
     }
     const template = pickTemplate(templates);
-    const text = generator.fillTemplate(template.text, { embellishScenes: isSceneDetailsActive() });
+    const text = generator.fillTemplate(template.text, {
+      embellishScenes: isSceneDetailsActive(),
+      forceThing: isAnimalGuaranteeActive() ? drawAnimalThing : null
+    });
     const textEl = document.getElementById("full-prompt-text");
     const generateBtn = document.getElementById("generate-prompt-btn");
     const iconEl = generateBtn.querySelector(".btn-icon");
@@ -1118,11 +1176,12 @@
     });
   }
 
-  // Only meaningful while Things is enabled — otherwise there's no
-  // Both of these settings toggles only do anything useful while a
-  // particular category is enabled (focal subject needs Things, scene
+  // These settings toggles only do anything useful while a particular
+  // category is enabled (focal subject/animal guarantee need Things, scene
   // detail needs Scenes) — this wires up one checkbox/label pair, disabling
   // it (not hiding it, so it's clear why) whenever that category is off.
+  // `extra` (optional) lists further controls — e.g. the species/breed
+  // dropdowns — to disable in lockstep with the checkbox.
   const settingsToggles = [];
 
   function initSettingsToggle(checkboxId, labelId, settingKey, requiredCategory) {
@@ -1145,6 +1204,7 @@
     entry.checkbox.disabled = !enabled;
     entry.label.classList.toggle("disabled", !enabled);
     entry.label.title = enabled ? "" : `Enable the ${CATEGORY_META[entry.requiredCategory].label} category to use this`;
+    if (entry.extra) entry.extra.forEach((el) => { el.disabled = !enabled; });
   }
 
   function updateAllSettingsToggles() {
@@ -1154,6 +1214,71 @@
   function initFocalToggle() {
     initSettingsToggle("focal-subject-toggle", "focal-toggle-label", "focalSubject", "things");
     initSettingsToggle("scene-details-toggle", "scene-details-toggle-label", "sceneDetails", "scenes");
+  }
+
+  /* ---------- Guarantee an animal (species + breed) ---------- */
+
+  function populateBreedSelect(species) {
+    const select = document.getElementById("animal-breed-select");
+    select.innerHTML = '<option value="any">Any breed</option>';
+    if (species !== "cat" && species !== "dog") return;
+    ANIMAL_BREEDS[species].all.forEach((name) => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      // Wild species names are stored lowercase (they're common nouns, not
+      // registered breed names — see animal-breeds.js) but read better with
+      // a capitalized first letter as a standalone dropdown label.
+      opt.textContent = capitalize(name);
+      select.appendChild(opt);
+    });
+  }
+
+  function updateAnimalPickerVisibility() {
+    document.getElementById("animal-picker").hidden = !settings.animalMode.enabled;
+    document.getElementById("animal-breed-field").hidden = settings.animalMode.species === "any";
+  }
+
+  function initAnimalGuaranteeToggle() {
+    const checkbox = document.getElementById("animal-guarantee-toggle");
+    const label = document.getElementById("animal-guarantee-toggle-label");
+    const speciesSelect = document.getElementById("animal-species-select");
+    const breedSelect = document.getElementById("animal-breed-select");
+
+    checkbox.checked = settings.animalMode.enabled;
+    label.classList.toggle("checked", checkbox.checked);
+    speciesSelect.value = settings.animalMode.species;
+    populateBreedSelect(settings.animalMode.species);
+    breedSelect.value = settings.animalMode.breed;
+    updateAnimalPickerVisibility();
+
+    checkbox.addEventListener("change", (e) => {
+      settings.animalMode.enabled = e.target.checked;
+      label.classList.toggle("checked", e.target.checked);
+      updateAnimalPickerVisibility();
+      saveSettings();
+    });
+
+    speciesSelect.addEventListener("change", (e) => {
+      settings.animalMode.species = e.target.value;
+      settings.animalMode.breed = "any";
+      populateBreedSelect(settings.animalMode.species);
+      breedSelect.value = "any";
+      updateAnimalPickerVisibility();
+      saveSettings();
+    });
+
+    breedSelect.addEventListener("change", (e) => {
+      settings.animalMode.breed = e.target.value;
+      saveSettings();
+    });
+
+    settingsToggles.push({
+      checkbox,
+      label,
+      requiredCategory: "things",
+      extra: [speciesSelect, breedSelect]
+    });
+    updateSettingsToggleAvailability(settingsToggles[settingsToggles.length - 1]);
   }
 
   /* ---------- Category cards ---------- */
@@ -1194,6 +1319,7 @@
     buildThemeToggles();
     initWeirdnessSlider();
     initFocalToggle();
+    initAnimalGuaranteeToggle();
     initPaletteFeature();
     buildCategoryCards();
     applyCategoryEnabledState();

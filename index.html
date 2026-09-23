@@ -74,6 +74,29 @@
           </label>
           <span class="settings-hint">Occasionally adds a small extra detail, like fog or dust motes</span>
         </div>
+        <div class="focal-row">
+          <label class="toggle-chip focal-toggle" id="animal-guarantee-toggle-label">
+            <input type="checkbox" id="animal-guarantee-toggle" />
+            <span>Guarantee an animal</span>
+          </label>
+          <span class="settings-hint">The Thing category always draws an animal — narrow it below if you like</span>
+        </div>
+        <div id="animal-picker" class="animal-picker" hidden>
+          <label class="animal-picker-field">
+            <span>Species</span>
+            <select id="animal-species-select">
+              <option value="any">Any animal</option>
+              <option value="cat">Cat</option>
+              <option value="dog">Dog</option>
+            </select>
+          </label>
+          <label class="animal-picker-field" id="animal-breed-field" hidden>
+            <span>Breed</span>
+            <select id="animal-breed-select">
+              <option value="any">Any breed</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       <div class="weirdness-control">
@@ -183,6 +206,7 @@
   <input id="practice-photo-input" type="file" accept="image/*" capture="environment" style="display:none" />
 
   <script src="js/data.js"></script>
+  <script src="js/animal-breeds.js"></script>
   <script src="js/palettes.js"></script>
   <script src="js/generator.js"></script>
   <script src="js/icons.js"></script>

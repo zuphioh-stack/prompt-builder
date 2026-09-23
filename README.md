@@ -38,6 +38,13 @@ whole app.
 - **Add atmospheric detail to scenes** toggle — occasionally appends a small
   curated atmospheric flourish to a scene ("...with dust motes drifting
   through a shaft of light"), in both the Scene card and the Full prompt.
+- **Guarantee an animal** toggle — forces the Thing category (both its own
+  card and the Full prompt) to always draw an animal, with an optional
+  Species dropdown (Any / Cat / Dog) and, for Cat/Dog, a Breed dropdown of
+  ~100 real cat breeds + wild felids or ~100 real dog breeds + wild canids
+  (`js/animal-breeds.js`). Combine it with "Focus on the animal/character"
+  to make that specific animal the sentence's subject, not just present in
+  it.
 - **Color palette** panel — an independent, optional tool with 51 curated
   color palettes (real named palettes and open-source theme specs, not
   generated hexes) spanning warm, cool, pastel, vibrant, muted, monochrome,
@@ -99,6 +106,7 @@ index.html              Markup, layout, login screen
 css/style.css            Styling (dark/light theme, login screen, shared UI)
 js/data.js               Word banks, theme tags, compatibility rules, sentence templates
 js/generator.js          Pure generation algorithm (shuffle bags + coherence bias) — no DOM
+js/animal-breeds.js      Cat/dog breed + wild species lists for "Guarantee an animal"
 js/palettes.js           Curated color palette data (51 palettes, tagged by mood)
 js/icons.js              Shared inline-SVG icon set
 js/supabase-config.js    Project URL / anon key / bucket name — fill these in
@@ -145,6 +153,47 @@ triad) noted as digital approximations of physical pigments. Each entry has
 `tags` (warm, cool, pastel, vibrant, muted, monochrome, dark, complementary,
 nature, retro, painterly) used by the browse grid's filter chips — add more
 by following the same `{ id, name, tags, hexes }` shape.
+
+## Animal breed data
+
+The ~100 cat entries (69 domestic breeds + 30 wild felids) and ~100 dog
+entries (70 domestic breeds + 30 wild canids) in `js/animal-breeds.js` are
+compiled from established breed-registry (CFA/TICA/AKC/FCI) and taxonomic
+(Felidae/Canidae) references. Domestic breed names are capitalized
+(kennel-club convention, e.g. "Siamese", "Labrador Retriever"); wild species
+names are lowercase common nouns like the rest of the app's word banks
+(e.g. "snow leopard", "gray wolf") except for the couple of genuine surname
+possessives ("Geoffroy's cat", "Rüppell's fox"). Domestic cat breed names
+get " cat" appended at generation time (see `animalNounPhrase` in that
+file) since a name like "Siamese" reads as an adjective on its own; dog
+breeds and every wild species name are already complete nouns.
+
+## Settings interactions
+
+Every toggle is designed to compose safely with every other one — the
+project includes a combinatorial Playwright check (run during development,
+not part of the shipped app) that exercises each category solo, each theme
+combined with focal/animal-guarantee, animal guarantee × species × breed ×
+weirdness × focal × scene-details together, and an "everything on at once"
+stress case, confirming no combination produces a crash, an empty/broken
+prompt, or a stuck-disabled Full Prompt button. A few rules worth knowing
+if you're editing the settings logic in `js/app.js`:
+
+- **Focus on the animal/character** and **Guarantee an animal** both need
+  Things enabled, and both disable their own checkbox (and, for the animal
+  toggle, its Species/Breed dropdowns) when Things is off.
+- **Add atmospheric detail to scenes** needs Scenes enabled, same pattern.
+- If both focal and animal-guarantee are on, focal's template filter (the
+  thing must be the grammatical subject) already implies animal-guarantee's
+  weaker one (the thing must merely appear) — `templatesToUse()` only
+  applies the animal-guarantee filter when focal isn't already active, so
+  they don't fight over which template pool to use.
+- A specific breed/species always overrides the general Things pool for
+  both the standalone Thing card and the Full prompt's `{thing}`/`{thing2}`
+  slots, but the weirdness slider still does something in that mode: it
+  controls the odds of picking an adjective outside the normally-excluded
+  "doesn't fit a real animal" set (winged, scaled, feathered, horned,
+  three-legged) instead of switching between safe/wild word-bank pools.
 
 ## Customizing the word banks
 

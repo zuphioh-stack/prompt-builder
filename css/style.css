@@ -863,6 +863,50 @@ body {
   cursor: not-allowed;
 }
 
+.animal-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin-left: 0.2rem;
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--line);
+}
+
+.animal-picker[hidden] {
+  display: none;
+}
+
+.animal-picker-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.animal-picker-field select {
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.6rem;
+  min-width: 160px;
+  cursor: pointer;
+}
+
+.animal-picker-field select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.animal-picker-field select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .weirdness-control {
   padding-top: 0.9rem;
   border-top: 1px solid var(--line);
