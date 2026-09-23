@@ -476,7 +476,7 @@ body {
   background: var(--card-tint);
   border: 1px solid transparent;
   color: var(--card-accent);
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   padding: 0.35rem 0.85rem;
   font-size: 0.8rem;
   font-weight: 800;
@@ -552,7 +552,7 @@ body {
   display: inline-flex;
   align-items: center;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   padding: 0.6rem 1.2rem;
   font-size: 0.88rem;
   font-weight: 800;
@@ -780,24 +780,26 @@ body {
   align-items: center;
   gap: 0.4rem;
   padding: 0.45rem 0.9rem 0.45rem 0.6rem;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--ink);
   font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  box-shadow: var(--shadow-sm);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
   user-select: none;
 }
 
-/* Solid pill when active — the same "CHOOSE A MODE" pattern the reference
+/* Solid block when active — the same "CHOOSE A MODE" pattern the reference
    uses for its mode-select buttons, rather than a tinted outline. */
 .toggle-chip.checked,
 .toggle-chip:has(input:checked) {
   background: var(--cta);
   border-color: var(--cta);
   color: var(--cta-ink);
+  box-shadow: var(--shadow-md);
 }
 
 .toggle-chip input {
@@ -1166,18 +1168,20 @@ body {
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--ink-soft);
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   padding: 0.3rem 0.75rem;
   font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
+  box-shadow: var(--shadow-sm);
   text-transform: capitalize;
 }
 
 .palette-filter-chip.active {
-  background: var(--accent-tint);
-  border-color: var(--accent);
-  color: var(--accent-dark);
+  background: var(--cta);
+  border-color: var(--cta);
+  color: var(--cta-ink);
+  box-shadow: var(--shadow-md);
 }
 
 .palette-browser-grid {
