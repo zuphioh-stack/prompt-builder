@@ -63,10 +63,13 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.2s ease, color 0.2s ease;
-  /* A faint dot grid behind everything, derived from --ink so it stays
-     subtle and correctly-toned in both themes automatically. */
-  background-image: radial-gradient(color-mix(in srgb, var(--ink) 12%, transparent) 1px, transparent 1.5px);
-  background-size: 22px 22px;
+  /* Graph-paper ruled grid behind everything — thin horizontal + vertical
+     lines forming even squares, derived from --ink so it stays subtle and
+     correctly-toned in both themes automatically. */
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--ink) 10%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--ink) 10%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 /* ---------- Header ---------- */
